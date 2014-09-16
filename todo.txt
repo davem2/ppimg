@@ -1,0 +1,14 @@
+- Add new option that takes a ppgen source file and converts all .il tags into equivilent HTML. This would be used in special cases when .il/.ca tags or macros are insufficient. The generated code would be a base to work off of that is functionally equivalant to the original ppgen. 
+
+psuedocode:
+# create temporary ppgen source file that contains only .il/.ca lines 
+# run ppgen on temporary source file 
+# parse CSS (related to illustrations/captions) and illustration related HTML from output
+# using parsed css, add .de statements to output
+# replace existing .il/.ca statements with 
+#	 .if t
+#	 original .il/.ca statements
+#	 .if-
+#	 .if h
+#	 parsed HTML
+#	 .if-
