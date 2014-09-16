@@ -12,13 +12,13 @@ Performs various tasks related to illustrations in the post-processing of
 books for pgdp.org using the ppgen post-processing tool.
 
 Examples:
-  ppimg book.txt
-  ppimg book-src.txt book-src.txt
+  ppimg book-src.txt
+  ppimg book-src.txt book-src2.txt
 
 Options:
   -h --help            Show help.
-  -b, --boilerplate    Include HTML boilerplate code when processing illustrations 
-  -i, --illustrations  Convert [Illustration] tags into ppgen .il/.ca markup.
+  -b, --boilerplate    Generate HTML boilerplate code from .il/.ca markup. 
+  -i, --illustrations  Convert raw [Illustration] tags into ppgen .il/.ca markup.
   -q, --quiet          Print less text.
   -v, --verbose        Print more text.
   --version            Show version.
@@ -65,48 +65,56 @@ def findNextNonEmptyLine( buf, startLine ):
 	return lineNum
 	
 	
-def processIllustrations( inBuf, doBoilerplate ):
-	# Build dictionary of images
+def buildIllustrationDictionary():
+	# Build dictionary of illustrations based on image files in images/ directory
 	files = sorted(glob.glob("images/*"))
 	
-	logging.info("--- Processing illustrations")
-	logging.info("------ Scanning /image folder")
-
-	# Build dictionary of illustrations in images folder
+	logging.info("------ Taking inventory of /image folder")
 	illustrations = {}
 	for f in files:
 		try:
 			img = Image.open(f)
 			img.load()
 		except:
-			logging.critical("Unable to load image: " + f)
+			logging.critical("Error loading image: " + f)
 
 		m = re.match(r"images/i_([^\.]+)", f)
 		if( m ):        
+			f = re.sub(r"images/", "", f)
+			logging.debug("Found image '" + f + "' " + str(img.size))
 			scanPageNum = m.group(1)
 			anchorID = "i"+scanPageNum
-			f = re.sub(r"images/", "", f)
 			illustrations[scanPageNum] = ({'anchorID':anchorID, 'fileName':f, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
-			logging.debug("Adding image '" + f + "' " + str(img.size))
 		else:
-			logging.warning("Skipping file '" + f + "' does not match expected naming convention")
+			logging.warning("File '" + f + "' does not match expected naming convention.. SKIPPING")
 
 	logging.info("------ Found " + str(len(illustrations)) + " illustrations")
 	
-	# Find and replace [Illustration: caption] markup
+	return illustrations;
+	
+
+def generateHTMLBoilerplate():
+	return
+	
+def convertRawIllustrationMarkup( inBuf ):
+	# Replace [Illustration: caption] markup with equivalent .il/.ca statements
 	outBuf = []
 	lineNum = 0
 	currentScanPage = 0
 	illustrationTagCount = 0
 	asteriskIllustrationTagCount = 0
 		
-	logging.info("------ Processing [Illustration] tags")
-
+	logging.info("--- Processing illustrations")
+	
+	illustrations = buildIllustrationDictionary()
+	
+	logging.info("------ Converting [Illustration] tags")
 	while lineNum < len(inBuf):
-		# Keep track of active scanpage
+		# Keep track of active scanpage, page numbers must be 
 		m = re.match(r"\/\/ (\d+)\.[png|jpg|jpeg]", inBuf[lineNum])
 		if( m ):
 			currentScanPage = m.group(1)
+			logging.debug("------ Processing page "+currentScanPage)
 
 		# Copy until next illustration block
 		if( re.match(r"^\[Illustration", inBuf[lineNum]) or re.match(r"^\*\[Illustration", inBuf[lineNum]) ):
@@ -173,24 +181,6 @@ def processIllustrations( inBuf, doBoilerplate ):
 			for line in outBlock:
 				outBuf.append(line)
 			
-			if( doBoilerplate ):
-				# Write out boilerplate code for HTML version as comment in case .il is not sufficient
-				outBuf.append(".ig  // *** PPPREP BEGIN **************************************************************")
-				outBuf.append("// ******** Alternative inline HTML version for use when .il .ca are insufficient *****") 
-				outBuf.append(".if h")
-				outBuf.append(".de .customCSS { clear:left; float:left; margin:4% 4% 4% 0; }")
-				outBuf.append(".li")
-				outBuf.append("<div class='customCSS'>")
-				outBuf.append("<img src='" + illustrations[currentScanPage]['fileName'] + "' alt='' />")
-				outBuf.append("</div>")
-				outBuf.append(".li-")
-				outBuf.append(".if-")
-				outBuf.append(".if t")
-				for line in inBlock:
-					outBuf.append(line)
-				outBuf.append(".if-")           
-				outBuf.append(".ig- // *** END ***********************************************************************")
-			
 			logging.debug("Line " + str(lineNum) + ": ScanPage " + str(currentScanPage) + ": convert " + str(inBlock))
 
 		else:
@@ -252,7 +242,8 @@ def loadFile(fn):
 	
 	
 def createOutputFileName( infile ):
-	outfile = infile.split('.')[0] + "-src.txt"
+	# TODO make this smart.. is infile raw or ppgen source? maybe two functions needed
+	outfile = infile.split('.')[0] + "-out.txt"
 	return outfile
 
 
@@ -273,11 +264,10 @@ def main():
 	doBoilerplate = args['--boilerplate'];
 	doIllustrations = args['--illustrations'];
 	
-	# Default to TODO
+	# Default TODO (smart based on what is given? raw/ppgen source)
 	if( not doBoilerplate and \
 		not doIllustrations ):
 		doIllustrations = True;
-		doBoilerplate = True;
 			
 	# Configure logging
 	logLevel = logging.INFO #default
@@ -294,7 +284,7 @@ def main():
 	logging.info("Processing '" + infile + "' to '" + outfile + "'")
 	outBuf = []
 	if( doIllustrations ):
-		outBuf = processIllustrations( inBuf, doBoilerplate ) # Illustration process requires // 001.png format
+		outBuf = convertRawIllustrationMarkup( inBuf ) 
 		inBuf = outBuf
 
 	# Save file
