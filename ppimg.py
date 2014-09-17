@@ -3,8 +3,8 @@
 """ppimg
 
 Usage:
-  ppimg [-biqv] <infile>
-  ppimg [-biqv] <infile> <outfile>
+  ppimg [-ibqv] <infile>
+  ppimg [-ibqv] <infile> <outfile>
   ppimg -h | --help
   ppimg ---version
 
@@ -19,6 +19,7 @@ Options:
   -h --help            Show help.
   -b, --boilerplate    Generate HTML boilerplate code from .il/.ca markup. 
   -i, --illustrations  Convert raw [Illustration] tags into ppgen .il/.ca markup.
+  -c, --check          Check for issues with .il markup
   -q, --quiet          Print less text.
   -v, --verbose        Print more text.
   --version            Show version.
@@ -26,11 +27,13 @@ Options:
 
 from docopt import docopt
 from PIL import Image
+from bs4 import BeautifulSoup
 import glob
 import re
 import os
 import sys
 import logging
+import subprocess
 
 
 def isLineBlank( line ):
@@ -47,6 +50,11 @@ def formatAsID( s ):
 	s = s.lower()                   # Lowercase
 
 	return s
+	
+	
+def findKeyInListOfDic(dic, val):
+    # Return the key of dictionary dic given the value val
+    return [k for k, v in dic.iteritems() if v == val][0]
 	
 	
 def findPreviousNonEmptyLine( buf, startLine ):
@@ -93,8 +101,168 @@ def buildIllustrationDictionary():
 	return illustrations;
 	
 
-def generateHTMLBoilerplate():
-	return
+def buildBoilerplateDictionary( inBuf ):
+	outBuf = []
+	lineNum = 0
+	
+	boilerplate = {};
+	
+	logging.info("------ Parsing .il/.ca statements from input")
+	while lineNum < len(inBuf):
+		# Find next .il/.ca, discard all other lines
+		if( re.match(r"^\.il ", inBuf[lineNum]) ):
+			logging.debug("Line "+str(lineNum)+": Found .il block")
+			startLine = lineNum
+			inBlock = []
+			captionBlock = []
+
+			ilStatement = inBuf[lineNum]
+			m = re.search(r"id=(\S+)", ilStatement)
+			if( m ):
+				ilID = m.group(1)
+			else:
+				logging.critical("Unable to parse id from .il statement: '"+ilStatement+"'")
+
+			inBlock.append(inBuf[lineNum])			
+			lineNum += 1
+			
+			# Is there a caption?
+			if( re.match(r"^\.ca", inBuf[lineNum]) ):
+				# Is .ca single line style?
+				if( re.match(r"^\.ca \S+", inBuf[lineNum]) ):
+					inBlock.append(inBuf[lineNum])
+					lineNum += 1
+				# Its a block
+				else:
+					# Copy caption block
+					inBlock.append(inBuf[lineNum])
+					while( not re.match(r"^\.ca\-", inBuf[lineNum]) ):
+						lineNum += 1
+						inBlock.append(inBuf[lineNum])
+
+			endLine = lineNum
+			
+			# Add entry in dictionary (empty for now)
+			boilerplate[ilID] = ({'ilStatement':ilStatement, 'ilBlock':inBlock, 'HTML':"", 'startLine':startLine, 'endLine':endLine })
+			
+			inBlock.append("") # add blank line between .il/.ca blocks
+			
+			# Write out .il/.ca block to output
+			for line in inBlock:
+				outBuf.append(line)
+
+			logging.debug(inBlock)
+
+		# Ignore lines that aren't .il/.ca
+		lineNum += 1
+	
+	logging.info("------ Generating temporary ppgen source file containing parsed .il/.ca statements")
+	tempFileName = "ppimgtempsrc" # TODO: use tempfile functions instead? will clobber existing if named exists
+	f = open(tempFileName,'w')
+	for line in outBuf:
+		f.write(line+'\n')
+	f.close()
+	
+	logging.info("------ Running ppgen against temporary ppgen source file")
+	ppgenCommandLine=['ppgen','-i',tempFileName] # TODO: this wont work on windows..
+	proc=subprocess.Popen(ppgenCommandLine)
+	proc.wait()
+	if( proc.returncode != 0 ):
+		logging.critical("Error occured during ppgen processing")
+
+	logging.info("------ Parsing ppgen generated HTML")
+	# Open ppgen generated HTML and represent as an array of lines
+	infile = tempFileName + ".html"
+	inBuf = loadFile( infile )
+	
+	logging.info("--------- Parsing CSS")
+	cssLines = []
+	
+	for line in inBuf:
+		# .ic001 {
+		# @media handheld { .ic001 {
+		# .ig001 {
+		# .fig(left|right|center)
+		if( re.search(r"\.i[cg]\d+ {", line) or \
+			re.search(r"\.fig(left|right|center)", line) ):
+			line = re.sub("(\s{2,}|\t)","",line) # get rid of whitespace in front
+			cssLines.append(line)
+			logging.debug("Add css: "+line)
+			
+	logging.info("--------- Parsing HTML")
+	# Soupify HTML
+	soup = BeautifulSoup(open(infile))
+	ilBlocks = soup.find_all('div',id=re.compile("$"))
+	for il in ilBlocks:
+		boilerplate[il['id']]['HTML'] = str(il);
+		
+	return boilerplate, cssLines
+
+
+def generateHTMLBoilerplate( inBuf ):
+#psuedocode:
+# create temporary ppgen source file that contains only .il/.ca lines 
+# run ppgen on temporary source file 
+# parse CSS (related to illustrations/captions) and illustration related HTML from output
+# using parsed css, add .de statements to output
+# replace existing .il/.ca statements with 
+#	 .if t
+#	 original .il/.ca statements
+#	 .if-
+#	 .if h
+#    .li
+#	 parsed HTML
+#    .li-
+#	 .if-
+
+	logging.info("--- Generating HTML Boilerplate")
+	
+	boilerplate, cssLines = buildBoilerplateDictionary( inBuf )
+#	print(boilerplate)
+#	print(cssLines)
+	
+	logging.info("--- Adding boilerplate to original")
+	outBuf = []
+	logging.info("------ Adding CSS")	
+	for line in cssLines:
+		outBuf.append(".de " + line)
+	
+	logging.info("------ Adding HTML")	
+	lineNum = 0
+	while lineNum < len(inBuf):
+		if( re.match(r"^\.il ", inBuf[lineNum]) ):
+			m = re.search(r"id=(\S+)", inBuf[lineNum])
+			if( m ):
+				ilID = m.group(1)
+			else:
+				logging.critical("Unable to parse id from .il statement: '"+ilStatement+"'")
+
+			# Sanity check.. TODO: is it legal for multiple illustrations to share the same id?
+			if( boilerplate[ilID]['startLine'] != lineNum ):
+				logging.warning("Illustration id='"+ilID+"' found on unexpected line "+str(lineNum))
+			
+#			print(ilID)
+#			print(boilerplate[ilID])
+			
+			# Replace .il/.ca block with HTML
+			outBuf.append(".if t")
+			# original .il/.ca statements
+			for line in boilerplate[ilID]['ilBlock']:
+				outBuf.append(line)
+			outBuf.append(".if-")
+			outBuf.append(".if h")
+			outBuf.append(".li")
+			outBuf.append(boilerplate[ilID]['HTML'])
+			outBuf.append(".li-")
+			outBuf.append(".if-")
+
+			lineNum = boilerplate[ilID]['endLine'] + 1
+			
+		else:
+			outBuf.append(inBuf[lineNum])
+			lineNum += 1
+
+	return outBuf
 	
 def convertRawIllustrationMarkup( inBuf ):
 	# Replace [Illustration: caption] markup with equivalent .il/.ca statements
@@ -114,7 +282,7 @@ def convertRawIllustrationMarkup( inBuf ):
 		m = re.match(r"\/\/ (\d+)\.[png|jpg|jpeg]", inBuf[lineNum])
 		if( m ):
 			currentScanPage = m.group(1)
-			logging.debug("------ Processing page "+currentScanPage)
+#			logging.debug("------ Processing page "+currentScanPage)
 
 		# Copy until next illustration block
 		if( re.match(r"^\[Illustration", inBuf[lineNum]) or re.match(r"^\*\[Illustration", inBuf[lineNum]) ):
@@ -286,11 +454,15 @@ def main():
 	if( doIllustrations ):
 		outBuf = convertRawIllustrationMarkup( inBuf ) 
 		inBuf = outBuf
+	if( doBoilerplate ):
+		outBuf = generateHTMLBoilerplate( inBuf ) 
+		inBuf = outBuf
 
 	# Save file
 	f = open(outfile,'w')
 	for line in outBuf:
-		f.write(line+'\n')
+		f.write(line)
+		f.write('\n')
 	f.close()
 	
 	return

@@ -20,3 +20,7 @@ psuedocode:
 	- checks for unused images 
 	- checks that images exist
 	- look at ppvimage for ideas
+
+- Use format() for log statements and other strings with multiple variables being displayed
+
+- ^ is redundant for re.match?
