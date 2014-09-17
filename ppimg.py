@@ -52,11 +52,6 @@ def formatAsID( s ):
 	return s
 	
 	
-def findKeyInListOfDic(dic, val):
-    # Return the key of dictionary dic given the value val
-    return [k for k, v in dic.iteritems() if v == val][0]
-	
-	
 def findPreviousNonEmptyLine( buf, startLine ):
 	lineNum = startLine
 	while lineNum < len(buf) and isLineBlank(buf[lineNum]):
@@ -84,19 +79,19 @@ def buildIllustrationDictionary():
 			img = Image.open(f)
 			img.load()
 		except:
-			logging.critical("Error loading image: " + f)
+			logging.critical("Error loading image: {}".format(f))
 
 		m = re.match(r"images/i_([^\.]+)", f)
 		if( m ):        
 			f = re.sub(r"images/", "", f)
-			logging.debug("Found image '" + f + "' " + str(img.size))
+			logging.debug("Found image '{}' {}".format(f,img.size))
 			scanPageNum = m.group(1)
 			anchorID = "i"+scanPageNum
 			illustrations[scanPageNum] = ({'anchorID':anchorID, 'fileName':f, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
 		else:
-			logging.warning("File '" + f + "' does not match expected naming convention.. SKIPPING")
+			logging.warning("File '{}' does not match expected naming convention.. SKIPPING".format(f))
 
-	logging.info("------ Found " + str(len(illustrations)) + " illustrations")
+	logging.info("------ Found {} illustrations".format(len(illustrations))
 	
 	return illustrations;
 	
@@ -111,7 +106,7 @@ def buildBoilerplateDictionary( inBuf ):
 	while lineNum < len(inBuf):
 		# Find next .il/.ca, discard all other lines
 		if( re.match(r"^\.il ", inBuf[lineNum]) ):
-			logging.debug("Line "+str(lineNum)+": Found .il block")
+			logging.debug("Line {}: Found .il block".format(lineNum))
 			startLine = lineNum
 			inBlock = []
 			captionBlock = []
@@ -121,7 +116,7 @@ def buildBoilerplateDictionary( inBuf ):
 			if( m ):
 				ilID = m.group(1)
 			else:
-				logging.critical("Unable to parse id from .il statement: '"+ilStatement+"'")
+				logging.critical("Unable to parse id from .il statement: '{}'".format(ilStatement))
 
 			inBlock.append(inBuf[lineNum])			
 			lineNum += 1
@@ -235,11 +230,11 @@ def generateHTMLBoilerplate( inBuf ):
 			if( m ):
 				ilID = m.group(1)
 			else:
-				logging.critical("Unable to parse id from .il statement: '"+ilStatement+"'")
+				logging.critical("Unable to parse id from .il statement: '{}'".format(ilStatement))
 
 			# Sanity check.. TODO: is it legal for multiple illustrations to share the same id?
 			if( boilerplate[ilID]['startLine'] != lineNum ):
-				logging.warning("Illustration id='"+ilID+"' found on unexpected line "+str(lineNum))
+				logging.warning("Illustration id='{}' found on unexpected line {}".format(ilID,lineNum))
 			
 #			print(ilID)
 #			print(boilerplate[ilID])
@@ -318,7 +313,7 @@ def convertRawIllustrationMarkup( inBuf ):
 			elif( currentScanPage in illustrations ):
 				illustrationKey = currentScanPage
 			else:
-				logging.critical("No image file for illustration located on scan page " + currentScanPage + ".png");
+				logging.critical("No image file for illustration located on scan page {}.png".format(currentScanPage));
 				
 			
 			# Convert to ppgen illustration block
@@ -355,8 +350,8 @@ def convertRawIllustrationMarkup( inBuf ):
 			outBuf.append(inBuf[lineNum])
 			lineNum += 1
 	
-	logging.info("------ Processed " + str(illustrationTagCount) + " [Illustrations] tags")
-	logging.warning("Found " + str(asteriskIllustrationTagCount) + " *[Illustrations] tags; ppgen .il/.ca statements have been generated, but relocation to paragraph break must be performed manually.")
+	logging.info("------ Processed {} [Illustrations] tags".format(illustrationTagCount))
+	logging.warning("Found {} *[Illustrations] tags; ppgen .il/.ca statements have been generated, but relocation to paragraph break must be performed manually.".format(asteriskIllustrationTagCount))
 
 	return outBuf;
 		
@@ -449,7 +444,7 @@ def main():
 	logging.debug(args)
 			
 	# Process source document
-	logging.info("Processing '" + infile + "' to '" + outfile + "'")
+	logging.info("Processing '{}' to '{}'".format(infile,outfile))
 	outBuf = []
 	if( doIllustrations ):
 		outBuf = convertRawIllustrationMarkup( inBuf ) 

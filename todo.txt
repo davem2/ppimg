@@ -21,6 +21,8 @@ psuedocode:
 	- checks that images exist
 	- look at ppvimage for ideas
 
-- Use format() for log statements and other strings with multiple variables being displayed
-
 - ^ is redundant for re.match?
+
+- Instead of assuming css used based on name .ig* .ic* .. parse HTML for actual styles used
+
+- Parsing of .il/.ca statements should be its own function, add general purpose argument parser for ppgen statements as well (ppgen probably has code for this already)
