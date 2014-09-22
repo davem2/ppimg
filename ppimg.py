@@ -327,8 +327,11 @@ def convertRawIllustrationMarkup( inBuf ):
 				line = re.sub(r"]$", "", line)
 				captionBlock.append(line)
 
-		   # .ca SOUTHAMPTON BAR IN THE OLDEN TIME.
-			if( len(captionBlock) == 1 ):
+		    # .ca SOUTHAMPTON BAR IN THE OLDEN TIME.
+			if( len(captionBlock) == 1 and captionBlock[0] == "" ):
+				# No caption
+				pass
+			elif( len(captionBlock) == 1 ):
 				# One line caption
 				outBlock.append(".ca " + captionBlock[0]);
 			else:
