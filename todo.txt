@@ -26,3 +26,11 @@ psuedocode:
 - Instead of assuming css used based on name .ig* .ic* .. parse HTML for actual styles used
 
 - Parsing of .il/.ca statements should be its own function, add general purpose argument parser for ppgen statements as well (ppgen probably has code for this already)
+
+- Option to convert from px->% and %->px for .il w= and ew=. (using 800 or user defined value for maxwidth)
+
+- Option to update .il w= parameters to pixel width of actual file
+
+- Generate report on what was done
+	- table of illustrations procesed in the form id|fileName|width|caption(line breaks converted to <br/>)
+

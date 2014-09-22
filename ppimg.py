@@ -91,7 +91,7 @@ def buildIllustrationDictionary():
 		else:
 			logging.warning("File '{}' does not match expected naming convention.. SKIPPING".format(f))
 
-	logging.info("------ Found {} illustrations".format(len(illustrations))
+	logging.info("------ Found {} illustrations".format(len(illustrations)))
 	
 	return illustrations;
 	
@@ -302,20 +302,18 @@ def convertRawIllustrationMarkup( inBuf ):
 			illustrationKey = None
 			if( currentScanPage in illustrations and illustrations[currentScanPage]['usageCount'] == 0 ):
 				illustrationKey = currentScanPage
-			elif( currentScanPage+'a' in illustrations and illustrations[currentScanPage+'a']['usageCount'] == 0 ):
-				illustrationKey = currentScanPage+'a'
-			elif( currentScanPage+'b' in illustrations and illustrations[currentScanPage+'b']['usageCount'] == 0 ):
-				illustrationKey = currentScanPage+'b'
-			elif( currentScanPage+'c' in illustrations and illustrations[currentScanPage+'c']['usageCount'] == 0 ):
-				illustrationKey = currentScanPage+'c'
-			elif( currentScanPage+'d' in illustrations and illustrations[currentScanPage+'d']['usageCount'] == 0 ):
-				illustrationKey = currentScanPage+'d'
-			elif( currentScanPage in illustrations ):
-				illustrationKey = currentScanPage
-			else:
-				logging.critical("No image file for illustration located on scan page {}.png".format(currentScanPage));
-				
+			else: # try i_001a, i_001b, ..., i_001z
+				alphabet = map(chr, range(97,123))
+				for letter in alphabet:
+					if( currentScanPage+letter in illustrations and illustrations[currentScanPage+letter]['usageCount'] == 0 ):
+						illustrationKey = currentScanPage+letter
+						break;
 			
+			if( illustrationKey == None and currentScanPage in illustrations ):
+				illustrationKey = currentScanPage
+			elif( illustrationKey == None ):
+				logging.critical("No image file for illustration located on scan page {}.png".format(currentScanPage));
+					
 			# Convert to ppgen illustration block
 			# .il id=i_001 fn=i_001.jpg w=600 alt=''
 			outBlock.append( ".il id=i" + illustrationKey + " fn=" +  illustrations[illustrationKey]['fileName'] + " w=" + str(illustrations[illustrationKey]['dimensions'][0]) + " alt=''" )
