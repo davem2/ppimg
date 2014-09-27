@@ -19,6 +19,7 @@ Options:
   -h --help            Show help.
   -b, --boilerplate    Generate HTML boilerplate code from .il/.ca markup. 
   -i, --illustrations  Convert raw [Illustration] tags into ppgen .il/.ca markup.
+  -w, --updatewidth    Update .il width parameters to files pixel dimensions.
   -c, --check          Check for issues with .il markup
   -q, --quiet          Print less text.
   -v, --verbose        Print more text.
@@ -68,12 +69,33 @@ def findNextNonEmptyLine( buf, startLine ):
 	return lineNum
 	
 	
-def buildIllustrationDictionary():
-	# Build dictionary of illustrations based on image files in images/ directory
+# For a given ppgen command, parse all arguments in the form
+# 	arg="val"
+# 	arg='val'
+# 	arg=val
+#
+def parseArgs(commandLine):
+	arguments = {}
+	
+	# break up command line 
+	tokens = commandLine.split()
+	
+	# process parameters (skip .command)
+	for t in tokens[1:]:
+		t = re.sub(r"[\'\"]","",t)
+		m = re.match(r"(.+)=(.+)", t)
+		if( m ):
+			arguments[m.group(1)]=m.group(2)
+		
+	return(arguments)
+
+
+def buildImageDictionary():
+	# Build dictionary of image files in images/ directory
 	files = sorted(glob.glob("images/*"))
 	
 	logging.info("------ Taking inventory of /image folder")
-	illustrations = {}
+	images = {}
 	for f in files:
 		try:
 			img = Image.open(f)
@@ -87,23 +109,29 @@ def buildIllustrationDictionary():
 			logging.debug("Found image '{}' {}".format(f,img.size))
 			scanPageNum = m.group(1)
 			anchorID = "i"+scanPageNum
-			illustrations[scanPageNum] = ({'anchorID':anchorID, 'fileName':f, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
+			images[scanPageNum] = ({'anchorID':anchorID, 'fileName':f, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
 		else:
 			logging.warning("File '{}' does not match expected naming convention.. SKIPPING".format(f))
 
-	logging.info("------ Found {} illustrations".format(len(illustrations)))
+	logging.info("------ Found {} images".format(len(images)))
 	
-	return illustrations;
+	return images;
 	
-
-def buildBoilerplateDictionary( inBuf ):
+	
+def parseIllustrationBlocks( inBuf ):
 	outBuf = []
 	lineNum = 0
-	
-	boilerplate = {};
+	currentScanPage = 0;
+	illustrations = {};
 	
 	logging.info("------ Parsing .il/.ca statements from input")
 	while lineNum < len(inBuf):
+		# Keep track of active scanpage, page numbers must be 
+		m = re.match(r"\/\/ (\d+)\.[png|jpg|jpeg]", inBuf[lineNum])
+		if( m ):
+			currentScanPage = m.group(1)
+			logging.debug("------ Processing page "+currentScanPage)
+
 		# Find next .il/.ca, discard all other lines
 		if( re.match(r"^\.il ", inBuf[lineNum]) ):
 			logging.debug("Line {}: Found .il block".format(lineNum))
@@ -112,20 +140,18 @@ def buildBoilerplateDictionary( inBuf ):
 			captionBlock = []
 
 			ilStatement = inBuf[lineNum]
-			m = re.search(r"id=(\S+)", ilStatement)
-			if( m ):
-				ilID = m.group(1)
-			else:
-				logging.critical("Unable to parse id from .il statement: '{}'".format(ilStatement))
-
 			inBlock.append(inBuf[lineNum])			
 			lineNum += 1
-			
+
+			ilParams = parseArgs(ilStatement)
+
 			# Is there a caption?
 			if( re.match(r"^\.ca", inBuf[lineNum]) ):
 				# Is .ca single line style?
 				if( re.match(r"^\.ca \S+", inBuf[lineNum]) ):
 					inBlock.append(inBuf[lineNum])
+					caption = re.sub("^\.ca ","", inBuf[lineNum]) # strip ".ca "
+					captionBlock.append(caption)
 					lineNum += 1
 				# Its a block
 				else:
@@ -134,28 +160,36 @@ def buildBoilerplateDictionary( inBuf ):
 					while( not re.match(r"^\.ca\-", inBuf[lineNum]) ):
 						lineNum += 1
 						inBlock.append(inBuf[lineNum])
-
-			endLine = lineNum
+						captionBlock.append(inBuf[lineNum])
+				
+				endLine = lineNum + 1
+			
+			else:
+				endLine = lineNum
 			
 			# Add entry in dictionary (empty for now)
-			boilerplate[ilID] = ({'ilStatement':ilStatement, 'ilBlock':inBlock, 'HTML':"", 'startLine':startLine, 'endLine':endLine })
-			
-			inBlock.append("") # add blank line between .il/.ca blocks
-			
-			# Write out .il/.ca block to output
-			for line in inBlock:
-				outBuf.append(line)
-
-			logging.debug(inBlock)
+			illustrations[ilParams['id']] = ({'ilStatement':ilStatement, 'captionBlock':captionBlock, 'ilBlock':inBlock, 'HTML':"", 'startLine':startLine, 'endLine':endLine, 'ilParams':ilParams, 'scanPageNum':currentScanPage })
 
 		# Ignore lines that aren't .il/.ca
 		lineNum += 1
+		
+	return illustrations
+	
+
+def buildBoilerplateDictionary( inBuf ):
+	outBuf = []
+	lineNum = 0
+	
+	boilerplate = {};
+	illustrations = parseIllustrationBlocks( inBuf )	
 	
 	logging.info("------ Generating temporary ppgen source file containing parsed .il/.ca statements")
 	tempFileName = "ppimgtempsrc" # TODO: use tempfile functions instead? will clobber existing if named exists
 	f = open(tempFileName,'w')
-	for line in outBuf:
-		f.write(line+'\n')
+	for k, il in illustrations.items():
+		for line in il['ilBlock']:
+			f.write(line+'\n')
+		f.write('\n')
 	f.close()
 	
 	logging.info("------ Running ppgen against temporary ppgen source file")
@@ -175,10 +209,11 @@ def buildBoilerplateDictionary( inBuf ):
 	
 	for line in inBuf:
 		# .ic001 {
+		# .id001 {
 		# @media handheld { .ic001 {
 		# .ig001 {
 		# .fig(left|right|center)
-		if( re.search(r"\.i[cg]\d+ {", line) or \
+		if( re.search(r"\.i[cdg]\d+ {", line) or \
 			re.search(r"\.fig(left|right|center)", line) ):
 			line = re.sub("(\s{2,}|\t)","",line) # get rid of whitespace in front
 			cssLines.append(line)
@@ -189,9 +224,9 @@ def buildBoilerplateDictionary( inBuf ):
 	soup = BeautifulSoup(open(infile))
 	ilBlocks = soup.find_all('div',id=re.compile("$"))
 	for il in ilBlocks:
-		boilerplate[il['id']]['HTML'] = str(il);
+		illustrations[il['id']]['HTML'] = str(il);
 		
-	return boilerplate, cssLines
+	return illustrations, cssLines
 
 
 def generateHTMLBoilerplate( inBuf ):
@@ -213,8 +248,6 @@ def generateHTMLBoilerplate( inBuf ):
 	logging.info("--- Generating HTML Boilerplate")
 	
 	boilerplate, cssLines = buildBoilerplateDictionary( inBuf )
-#	print(boilerplate)
-#	print(cssLines)
 	
 	logging.info("--- Adding boilerplate to original")
 	outBuf = []
@@ -226,18 +259,13 @@ def generateHTMLBoilerplate( inBuf ):
 	lineNum = 0
 	while lineNum < len(inBuf):
 		if( re.match(r"^\.il ", inBuf[lineNum]) ):
-			m = re.search(r"id=(\S+)", inBuf[lineNum])
-			if( m ):
-				ilID = m.group(1)
-			else:
-				logging.critical("Unable to parse id from .il statement: '{}'".format(ilStatement))
+			
+			ilParams = parseArgs(inBuf[lineNum])
+			ilID = ilParams['id']
 
 			# Sanity check.. TODO: is it legal for multiple illustrations to share the same id?
 			if( boilerplate[ilID]['startLine'] != lineNum ):
 				logging.warning("Illustration id='{}' found on unexpected line {}".format(ilID,lineNum))
-			
-#			print(ilID)
-#			print(boilerplate[ilID])
 			
 			# Replace .il/.ca block with HTML
 			outBuf.append(".if t")
@@ -251,7 +279,7 @@ def generateHTMLBoilerplate( inBuf ):
 			outBuf.append(".li-")
 			outBuf.append(".if-")
 
-			lineNum = boilerplate[ilID]['endLine'] + 1
+			lineNum = boilerplate[ilID]['endLine']
 			
 		else:
 			outBuf.append(inBuf[lineNum])
@@ -269,7 +297,7 @@ def convertRawIllustrationMarkup( inBuf ):
 		
 	logging.info("--- Processing illustrations")
 	
-	illustrations = buildIllustrationDictionary()
+	illustrations = buildImageDictionary()
 	
 	logging.info("------ Converting [Illustration] tags")
 	while lineNum < len(inBuf):
@@ -316,7 +344,7 @@ def convertRawIllustrationMarkup( inBuf ):
 					
 			# Convert to ppgen illustration block
 			# .il id=i_001 fn=i_001.jpg w=600 alt=''
-			outBlock.append( ".il id=i" + illustrationKey + " fn=" +  illustrations[illustrationKey]['fileName'] + " w=" + str(illustrations[illustrationKey]['dimensions'][0]) + " alt=''" )
+			outBlock.append( ".il id=i" + illustrationKey + " fn=" +  illustrations[illustrationKey]['fileName'] + " w=" + str(illustrations[illustrationKey]['dimensions'][0]) + "px" + " alt=''" )
 			illustrations[illustrationKey]['usageCount'] += 1
 			
 			# Extract caption from illustration block
@@ -352,7 +380,8 @@ def convertRawIllustrationMarkup( inBuf ):
 			lineNum += 1
 	
 	logging.info("------ Processed {} [Illustrations] tags".format(illustrationTagCount))
-	logging.warning("Found {} *[Illustrations] tags; ppgen .il/.ca statements have been generated, but relocation to paragraph break must be performed manually.".format(asteriskIllustrationTagCount))
+	if( asteriskIllustrationTagCount > 0 ):
+		logging.warning("Found {} *[Illustrations] tags; ppgen .il/.ca statements have been generated, but relocation to paragraph break must be performed manually.".format(asteriskIllustrationTagCount))
 
 	return outBuf;
 		
@@ -395,7 +424,6 @@ def loadFile(fn):
 	if encoding == "":
 		fatal("Cannot determine input file decoding")
 	else:
-		# self.info("input file is: {}".format(encoding))
 		if encoding == "ASCII":
 			encoding = "latin_1" # handle ASCII as Latin-1 for DP purposes
 
