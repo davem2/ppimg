@@ -3,8 +3,8 @@
 """ppimg
 
 Usage:
-  ppimg [-ibqvw] <infile>
-  ppimg [-ibqvw] <infile> <outfile>
+  ppimg [-ibdqvw] <infile>
+  ppimg [-ibdqvw] <infile> <outfile>
   ppimg -h | --help
   ppimg ---version
 
@@ -18,6 +18,7 @@ Examples:
 Options:
   -h --help            Show help.
   -b, --boilerplate    Generate HTML boilerplate code from .il/.ca markup. 
+  -d, --dryrun         Run through conversions but do not write out result
   -i, --illustrations  Convert raw [Illustration] tags into ppgen .il/.ca markup.
   -c, --check          Check for issues with .il markup
   -q, --quiet          Print less text.
@@ -560,7 +561,7 @@ def main():
 		outBuf = updateWidths( inBuf ) 
 		inBuf = outBuf
 
-	if( outBuf ):
+	if( outBuf and not args['--dryrun'] ):
 		# Save file
 		f = open(outfile,'w')
 		for line in outBuf:
