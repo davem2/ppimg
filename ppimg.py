@@ -3,8 +3,8 @@
 """ppimg
 
 Usage:
-  ppimg [-ibqv] <infile>
-  ppimg [-ibqv] <infile> <outfile>
+  ppimg [-ibqvw] <infile>
+  ppimg [-ibqvw] <infile> <outfile>
   ppimg -h | --help
   ppimg ---version
 
@@ -19,10 +19,10 @@ Options:
   -h --help            Show help.
   -b, --boilerplate    Generate HTML boilerplate code from .il/.ca markup. 
   -i, --illustrations  Convert raw [Illustration] tags into ppgen .il/.ca markup.
-  -w, --updatewidth    Update .il width parameters to files pixel dimensions.
   -c, --check          Check for issues with .il markup
   -q, --quiet          Print less text.
   -v, --verbose        Print more text.
+  -w, --updatewidths   Update .il width parameters to files pixel dimensions.
   --version            Show version.
 """  
 
@@ -113,7 +113,7 @@ def buildImageDictionary():
 		else:
 			logging.warning("File '{}' does not match expected naming convention.. SKIPPING".format(f))
 
-	logging.info("------ Found {} images".format(len(images)))
+	logging.info("--------- Found {} images".format(len(images)))
 	
 	return images;
 	
@@ -130,11 +130,11 @@ def parseIllustrationBlocks( inBuf ):
 		m = re.match(r"\/\/ (\d+)\.[png|jpg|jpeg]", inBuf[lineNum])
 		if( m ):
 			currentScanPage = m.group(1)
-			logging.debug("------ Processing page "+currentScanPage)
+#			logging.debug("------ Processing page "+currentScanPage)
 
 		# Find next .il/.ca, discard all other lines
 		if( re.match(r"^\.il ", inBuf[lineNum]) ):
-			logging.debug("Line {}: Found .il block".format(lineNum))
+#			logging.debug("Line {}: Found .il block".format(lineNum))
 			startLine = lineNum
 			inBlock = []
 			captionBlock = []
@@ -173,6 +173,8 @@ def parseIllustrationBlocks( inBuf ):
 		# Ignore lines that aren't .il/.ca
 		lineNum += 1
 		
+	logging.info("--------- Found {} .il statements".format(len(illustrations)))
+
 	return illustrations
 	
 
@@ -385,6 +387,48 @@ def convertRawIllustrationMarkup( inBuf ):
 
 	return outBuf;
 		
+		
+def generateIlStatement( args ):
+	ilStatement = ".il fn='{}'".format(args['fn'])
+	del args['fn']
+
+	# add other remaining parameters 
+	for k, v in args.items():
+		kv = " {}={}".format(k,v)
+		ilStatement += kv
+
+	return ilStatement
+	
+			
+def updateWidths( inBuf ):
+	outBuf = inBuf
+	
+	logging.info("--- Updating widths")
+
+	illustrations = parseIllustrationBlocks( inBuf )	
+	images = buildImageDictionary()
+	
+	# update width parameter in each .il statement
+	logging.info("------ Modifying .il statements to match actual width dimension of image file")
+	for k, il in illustrations.items():
+		ilParams = il['ilParams']
+		curWidth = ilParams['w']
+		
+		if "%" in curWidth:
+			ilParams['ew'] = curWidth
+		
+		# Can't use il['scanPageNum'] in case illustration has been relocated 
+		# to a different page as in the case of *[Illustration 
+		originalScanPageNum = re.sub(r"[^0-9]", "", ilParams['fn'])
+		
+		imageFileWidth = images[originalScanPageNum]['dimensions'][0]
+		ilParams['w'] = "{}px".format(imageFileWidth)
+		
+		newIlStatement = generateIlStatement(ilParams)	
+		outBuf[il['startLine']] = newIlStatement
+	
+	return outBuf
+	
 			
 def loadFile(fn):
 	inBuf = []
@@ -455,11 +499,12 @@ def main():
 	# Process optional command line arguments
 	doBoilerplate = args['--boilerplate'];
 	doIllustrations = args['--illustrations'];
+	doUpdateWidths = args['--updatewidths']
 	
 	# Default TODO (smart based on what is given? raw/ppgen source)
-	if( not doBoilerplate and \
-		not doIllustrations ):
-		doIllustrations = True;
+#	if( not doBoilerplate and \
+#		not doIllustrations ):
+#		doIllustrations = True;
 			
 	# Configure logging
 	logLevel = logging.INFO #default
@@ -481,13 +526,17 @@ def main():
 	if( doBoilerplate ):
 		outBuf = generateHTMLBoilerplate( inBuf ) 
 		inBuf = outBuf
+	if( doUpdateWidths ):
+		outBuf = updateWidths( inBuf ) 
+		inBuf = outBuf
 
-	# Save file
-	f = open(outfile,'w')
-	for line in outBuf:
-		f.write(line)
-		f.write('\n')
-	f.close()
+	if( outBuf ):
+		# Save file
+		f = open(outfile,'w')
+		for line in outBuf:
+			f.write(line)
+			f.write('\n')
+		f.close()
 	
 	return
 
