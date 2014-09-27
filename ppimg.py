@@ -77,7 +77,7 @@ def findNextNonEmptyLine( buf, startLine ):
 def parseArgs(commandLine):
 	arguments = {}
 	
-	# break up command line 
+	# break up command line (this will break if token contains spaces, like fn="bad name.jpg")
 	tokens = commandLine.split()
 	
 	# process parameters (skip .command)
@@ -437,6 +437,8 @@ def updateWidths( inBuf ):
 	# update width parameter in each .il statement
 	logging.info("------ Modifying .il statements to match actual width dimension of image file")
 	for k, il in illustrations.items():
+		logging.debug("Original .il: {}".format(il['ilStatement']))
+
 		ilParams = il['ilParams']
 		curWidth = ilParams['w']
 		
@@ -445,13 +447,15 @@ def updateWidths( inBuf ):
 		
 		# Can't use il['scanPageNum'] in case illustration has been relocated 
 		# to a different page as in the case of *[Illustration 
-		originalScanPageNum = re.sub(r"[^0-9]", "", ilParams['fn'])
+		originalScanPageNum = re.sub(r"^i", "", ilParams['id'])
 		
 		imageFileWidth = images[originalScanPageNum]['dimensions'][0]
 		ilParams['w'] = "{}px".format(imageFileWidth)
 		
 		newIlStatement = generateIlStatement(ilParams)	
 		outBuf[il['startLine']] = newIlStatement
+
+		logging.debug("Modified .il: {}".format(newIlStatement))
 	
 	return outBuf
 	
