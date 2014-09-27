@@ -389,10 +389,36 @@ def convertRawIllustrationMarkup( inBuf ):
 		
 		
 def generateIlStatement( args ):
-	ilStatement = ".il fn='{}'".format(args['fn'])
-	del args['fn']
+	ilStatement = ".il"
 
-	# add other remaining parameters 
+	# Add parameters individually so that order is deterministic
+	if 'id' in args:
+		ilStatement += " id='{}'".format(args['id'])
+		del args['id']
+	if 'fn' in args:
+		ilStatement += " fn='{}'".format(args['fn'])
+		del args['fn']
+	if 'link' in args:
+		ilStatement += " link='{}'".format(args['link'])
+		del args['link']
+	if 'alt' in args:
+		ilStatement += " alt='{}'".format(args['alt'])
+		del args['alt']
+	if 'w' in args:
+		ilStatement += " w={}".format(args['w'])
+		del args['w']
+	if 'ew' in args:
+		ilStatement += " ew={}".format(args['ew'])
+		del args['ew']
+	if 'eh' in args:
+		ilStatement += " eh={}".format(args['eh'])
+		del args['eh']
+	if 'align' in args:
+		ilStatement += " align={}".format(args['align'])
+		del args['align']
+
+	# Add any remaining parameters whose order we dont care about, or didn't 
+	# exist at the time
 	for k, v in args.items():
 		kv = " {}={}".format(k,v)
 		ilStatement += kv
