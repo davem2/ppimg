@@ -3,8 +3,9 @@
 """ppimg
 
 Usage:
-  ppimg [-ibdqvw] <infile>
-  ppimg [-ibdqvw] <infile> <outfile>
+  ppimg [-bcdiqvw] <infile>
+  ppimg [-bcdiqvw] <infile> <outfile>
+  ppimg --gettargetwidth=<image>
   ppimg -h | --help
   ppimg ---version
 
@@ -16,14 +17,14 @@ Examples:
   ppimg book-src.txt book-src2.txt
 
 Options:
-  -h --help            Show help.
   -b, --boilerplate    Generate HTML boilerplate code from .il/.ca markup. 
+  -c, --check          Check for issues with .il markup
   -d, --dryrun         Run through conversions but do not write out result
   -i, --illustrations  Convert raw [Illustration] tags into ppgen .il/.ca markup.
-  -c, --check          Check for issues with .il markup
   -q, --quiet          Print less text.
   -v, --verbose        Print more text.
   -w, --updatewidths   Update .il width parameters to files pixel dimensions.
+  -h, --help           Show help.
   --version            Show version.
 """  
 
@@ -36,7 +37,8 @@ import os
 import sys
 import logging
 import subprocess
-
+import json
+from pprint import pprint
 
 def isLineBlank( line ):
 	return re.match( r"^\s*$", line )
@@ -513,30 +515,19 @@ def createOutputFileName( infile ):
 	outfile = infile.split('.')[0] + "-out.txt"
 	return outfile
 
+def getTargetWidth( image ):
+	json_data=open('test.json')
+
+	data = json.load(json_data)
+#	pprint(data)
+	width = data['images'][image]['targetWidth']
+	json_data.close()
+	
+	return width
 
 def main():
 	args = docopt(__doc__, version='ppimg 0.1')
 
-	# Process required command line arguments
-	outfile = createOutputFileName( args['<infile>'] )
-	if( args['<outfile>'] ):
-		outfile = args['<outfile>']
-		
-	infile = args['<infile>']
-
-	# Open source file and represent as an array of lines
-	inBuf = loadFile( infile )
-
-	# Process optional command line arguments
-	doBoilerplate = args['--boilerplate'];
-	doIllustrations = args['--illustrations'];
-	doUpdateWidths = args['--updatewidths']
-	
-	# Default TODO (smart based on what is given? raw/ppgen source)
-#	if( not doBoilerplate and \
-#		not doIllustrations ):
-#		doIllustrations = True;
-			
 	# Configure logging
 	logLevel = logging.INFO #default
 	if( args['--verbose'] ):
@@ -544,30 +535,53 @@ def main():
 	elif( args['--quiet'] ):
 		logLevel = logging.ERROR
 		
-	logging.basicConfig(format='%(levelname)s: %(message)s', level=logLevel)
-			
+	logging.basicConfig(format='%(levelname)s: %(message)s', level=logLevel)			
 	logging.debug(args)
 			
-	# Process source document
-	logging.info("Processing '{}' to '{}'".format(infile,outfile))
-	outBuf = []
-	if( doIllustrations ):
-		outBuf = convertRawIllustrationMarkup( inBuf ) 
-		inBuf = outBuf
-	if( doBoilerplate ):
-		outBuf = generateHTMLBoilerplate( inBuf ) 
-		inBuf = outBuf
-	if( doUpdateWidths ):
-		outBuf = updateWidths( inBuf ) 
-		inBuf = outBuf
+	if( args['--gettargetwidth'] ):
+		width = getTargetWidth(args['--gettargetwidth'])
+		print(width)
 
-	if( outBuf and not args['--dryrun'] ):
-		# Save file
-		f = open(outfile,'w')
-		for line in outBuf:
-			f.write(line)
-			f.write('\n')
-		f.close()
+	else:
+		# Process required command line arguments
+		outfile = createOutputFileName( args['<infile>'] )
+		if( args['<outfile>'] ):
+			outfile = args['<outfile>']
+			
+		infile = args['<infile>']
+
+		# Open source file and represent as an array of lines
+		inBuf = loadFile( infile )
+
+		# Process optional command line arguments
+		doBoilerplate = args['--boilerplate'];
+		doIllustrations = args['--illustrations'];
+		doUpdateWidths = args['--updatewidths']
+		
+		# Default TODO (smart based on what is given? raw/ppgen source)
+	#	if( not doBoilerplate and \
+	#		not doIllustrations ):
+	#		doIllustrations = True;
+			
+		# Process source document
+		logging.info("Processing '{}' to '{}'".format(infile,outfile))
+		outBuf = []
+		if( doIllustrations ):
+			outBuf = convertRawIllustrationMarkup( inBuf ) 
+			inBuf = outBuf
+		if( doBoilerplate ):
+			outBuf = generateHTMLBoilerplate( inBuf ) 
+			inBuf = outBuf
+		if( doUpdateWidths ):
+			outBuf = updateWidths( inBuf ) 
+			inBuf = outBuf
+
+		if( outBuf and not args['--dryrun'] ):
+			# Save file
+			f = open(outfile,'w')
+			for line in outBuf:
+				f.write(line+'\r\n')
+			f.close()
 	
 	return
 
