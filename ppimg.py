@@ -3,9 +3,9 @@
 """ppimg
 
 Usage:
-  ppimg [-bcdiqvw] <infile>
-  ppimg [-bcdiqvw] <infile> <outfile>
+  ppimg [-bcdiqvw] <infile> [<outfile>]
   ppimg --gettargetwidth=<image>
+  ppimg --calcimagewidths --maxwidth=<maxwidth> <infile>
   ppimg -h | --help
   ppimg ---version
 
@@ -38,7 +38,6 @@ import sys
 import logging
 import subprocess
 import json
-from pprint import pprint
 
 def isLineBlank( line ):
 	return re.match( r"^\s*$", line )
@@ -172,9 +171,9 @@ def parseIllustrationBlocks( inBuf ):
 			
 			# Add entry in dictionary (empty for now)
 			illustrations[ilParams['id']] = ({'ilStatement':ilStatement, 'captionBlock':captionBlock, 'ilBlock':inBlock, 'HTML':"", 'startLine':startLine, 'endLine':endLine, 'ilParams':ilParams, 'scanPageNum':currentScanPage })
-
-		# Ignore lines that aren't .il/.ca
-		lineNum += 1
+		else:
+			# Ignore lines that aren't .il/.ca
+			lineNum += 1
 		
 	logging.info("--------- Found {} .il statements".format(len(illustrations)))
 
@@ -455,6 +454,7 @@ def updateWidths( inBuf ):
 		imageFileWidth = images[originalScanPageNum]['dimensions'][0]
 		ilParams['w'] = "{}px".format(imageFileWidth)
 		
+		#TODO: bug here.. if multiple .il statements exist for the same file only the last instance will be modified
 		newIlStatement = generateIlStatement(ilParams)	
 		outBuf[il['startLine']] = newIlStatement
 
@@ -515,15 +515,62 @@ def createOutputFileName( infile ):
 	outfile = infile.split('.')[0] + "-out.txt"
 	return outfile
 
+
 def getTargetWidth( image ):
-	json_data=open('test.json')
+	json_data=open('images.json')
 
 	data = json.load(json_data)
-#	pprint(data)
-	width = data['images'][image]['targetWidth']
+	width = data[image]['targetWidth']
 	json_data.close()
 	
 	return width
+
+
+def calcImageWidths( inBuf, maxwidth ):
+	logging.info("--- Calculating widths")
+
+	illustrations = parseIllustrationBlocks( inBuf )	
+	images = buildImageDictionary()
+	
+	jsonData = {}
+	for k, il in illustrations.items():
+		logging.debug("Source .il: {}".format(il['ilStatement']))
+
+		ilParams = il['ilParams']
+		
+		# Check image percentage
+		if "%" in ilParams['w']:
+			scale = int(re.sub("%", "", ilParams['w'])) / 100.0
+		elif "%" in ilParams['ew']:
+			scale = int(re.sub("%", "", ilParams['ew'])) / 100.0
+		else:
+			scale = 0
+			logging.error("w or ew parameter must be expressed in % for width to be calculated")
+		
+		calculatedWidth = int(scale * int(maxwidth))
+
+		logging.debug("Calculated width: {}".format(calculatedWidth))
+	
+		# Add to data
+		key = "images/"+ilParams['fn']
+		jsonData[key] = ({'targetWidth':calculatedWidth})
+#		images[scanPageNum] = ({'anchorID':anchorID, 'fileName':f, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
+		
+	# Write out JSON
+	f = open("images.json",'w')
+	f.write(json.dumps(jsonData))
+	f.close()
+	
+	# Change last modifed time of illustration masters to force resize on next invocation of make
+	print(os.path.abspath('originals/illustrations'))
+	masterImageFiles = glob.glob(os.path.abspath('originals/illustrations')+'/*')
+	commandLine=['touch'] + masterImageFiles # TODO: this wont work on windows..
+	proc=subprocess.Popen(commandLine)
+	proc.wait()
+	if( proc.returncode != 0 ):
+		logging.critical("Error occured processing {}".format(commandLine))
+	
+
 
 def main():
 	args = docopt(__doc__, version='ppimg 0.1')
@@ -554,9 +601,10 @@ def main():
 		inBuf = loadFile( infile )
 
 		# Process optional command line arguments
-		doBoilerplate = args['--boilerplate'];
-		doIllustrations = args['--illustrations'];
+		doBoilerplate = args['--boilerplate']
+		doIllustrations = args['--illustrations']
 		doUpdateWidths = args['--updatewidths']
+		calcimagewidths = args['--calcimagewidths']
 		
 		# Default TODO (smart based on what is given? raw/ppgen source)
 	#	if( not doBoilerplate and \
@@ -569,12 +617,14 @@ def main():
 		if( doIllustrations ):
 			outBuf = convertRawIllustrationMarkup( inBuf ) 
 			inBuf = outBuf
-		if( doBoilerplate ):
+		elif( doBoilerplate ):
 			outBuf = generateHTMLBoilerplate( inBuf ) 
 			inBuf = outBuf
-		if( doUpdateWidths ):
+		elif( doUpdateWidths ):
 			outBuf = updateWidths( inBuf ) 
 			inBuf = outBuf
+		elif( calcimagewidths ):
+			calcImageWidths( inBuf, args['--maxwidth'] )
 
 		if( outBuf and not args['--dryrun'] ):
 			# Save file
