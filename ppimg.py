@@ -454,7 +454,7 @@ def updateWidths( inBuf ):
 		if "%" in curWidth:
 			ilParams['ew'] = curWidth
 		
-		key = idFromFilename(il['fn'])
+		key = idFromFilename(ilParams['fn'])
 		imageFileWidth = images[key]['dimensions'][0]
 		ilParams['w'] = "{}px".format(imageFileWidth)
 		
@@ -560,13 +560,13 @@ def calcImageWidths( inBuf, maxwidth ):
 		jsonData[key] = ({'targetWidth':calculatedWidth})
 #		images[scanPageNum] = ({'anchorID':anchorID, 'fileName':f, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
 		
+	logging.info("--- Updating images.json with calculated widths")
 	# Write out JSON
 	f = open("images.json",'w')
 	f.write(json.dumps(jsonData))
 	f.close()
 	
 	# Change last modifed time of illustration masters to force resize on next invocation of make
-	print(os.path.abspath('originals/illustrations'))
 	masterImageFiles = glob.glob(os.path.abspath('originals/illustrations')+'/*')
 	commandLine=['touch'] + masterImageFiles # TODO: this wont work on windows..
 	proc=subprocess.Popen(commandLine)
@@ -574,6 +574,12 @@ def calcImageWidths( inBuf, maxwidth ):
 	if( proc.returncode != 0 ):
 		logging.critical("Error occured processing {}".format(commandLine))
 	
+	logging.info("***********************************************")
+	logging.info("***                                        ****")
+	logging.info("*** RUN 'make' TO RESCALE FILES IN images/ ****")
+	logging.info("*** THEN 'ppimg -w' TO UPDATE PPGEN SRC    ****")
+	logging.info("***                                        ****")
+	logging.info("***********************************************")
 
 
 def main():
