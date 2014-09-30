@@ -47,12 +47,14 @@ def isLineComment( line ):
 	return re.match( r"^\/\/ *$", line )
 	
 	
-def formatAsID( s ):
-	s = re.sub(r" ", '_', s)        # Replace spaces with underscore    
-	s = re.sub(r"[^\w\s]", '', s)   # Strip everything but alphanumeric and _
-	s = s.lower()                   # Lowercase
-
-	return s
+def idFromFilename( fn ):
+	id = os.path.basename(fn) # strip to filename only
+	id = os.path.splitext(id)[0] # strip off extension
+	return id
+	
+def idFromPageNumber( pn ):
+	id =  'i_{}'.format(pn)
+	return id
 	
 	
 def findPreviousNonEmptyLine( buf, startLine ):
@@ -105,13 +107,14 @@ def buildImageDictionary():
 		except:
 			logging.critical("Error loading image: {}".format(f))
 
-		m = re.match(r"images/i_([^\.]+)", f)
+		m = re.match(r"images/(i_[^\.]+)", f)
 		if( m ):        
-			f = re.sub(r"images/", "", f)
-			logging.debug("Found image '{}' {}".format(f,img.size))
-			scanPageNum = m.group(1)
-			anchorID = "i"+scanPageNum
-			images[scanPageNum] = ({'anchorID':anchorID, 'fileName':f, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
+			fn = os.path.basename(f)
+			anchorID = idFromFilename(fn)
+			logging.debug("Found image {} '{}' {}".format(anchorID,f,img.size))
+			scanPageNum = re.sub("[^0-9]","",m.group(1))
+			key = idFromFilename(fn)
+			images[key] = ({'anchorID':anchorID, 'fileName':fn, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
 		else:
 			logging.warning("File '{}' does not match expected naming convention.. SKIPPING".format(f))
 
@@ -170,7 +173,8 @@ def parseIllustrationBlocks( inBuf ):
 				endLine = lineNum
 			
 			# Add entry in dictionary (empty for now)
-			illustrations[ilParams['fn']] = ({'ilStatement':ilStatement, 'captionBlock':captionBlock, 'ilBlock':inBlock, 'HTML':"", 'startLine':startLine, 'endLine':endLine, 'ilParams':ilParams, 'scanPageNum':currentScanPage })
+			key = idFromFilename(ilParams['fn'])
+			illustrations[key] = ({'ilStatement':ilStatement, 'captionBlock':captionBlock, 'ilBlock':inBlock, 'HTML':"", 'startLine':startLine, 'endLine':endLine, 'ilParams':ilParams, 'scanPageNum':currentScanPage })
 		else:
 			# Ignore lines that aren't .il/.ca
 			lineNum += 1
@@ -229,7 +233,7 @@ def buildBoilerplateDictionary( inBuf ):
 	ilBlocks = soup.find_all('div',id=re.compile("$"))
 	for il in ilBlocks:
 		src = il.img['src']
-		key = os.path.basename(src)
+		key = idFromFilename(src)
 		illustrations[key]['HTML'] = str(il);
 		
 	return illustrations, cssLines
@@ -267,7 +271,7 @@ def generateHTMLBoilerplate( inBuf ):
 		if( re.match(r"^\.il ", inBuf[lineNum]) ):
 			
 			ilParams = parseArgs(inBuf[lineNum])
-			ilKey = ilParams['fn']
+			ilKey = idFromFilename(ilParams['fn'])
 
 			# Sanity check.. TODO: is it legal for multiple illustrations to share the same id?
 			if( boilerplate[ilKey]['startLine'] != lineNum ):
@@ -333,25 +337,26 @@ def convertRawIllustrationMarkup( inBuf ):
 			lineNum += 1
 			
 			# Handle multiple illustrations per page, must be named (i_001a, i_001b, ...) or (i_001, i_001a, i_001b, ...)
-			illustrationKey = None
-			if( currentScanPage in illustrations and illustrations[currentScanPage]['usageCount'] == 0 ):
-				illustrationKey = currentScanPage
+			ilID = None
+			testID = idFromPageNumber(currentScanPage)
+			if( testID in illustrations and illustrations[testID]['usageCount'] == 0 ):
+				ilID = testID
 			else: # try i_001a, i_001b, ..., i_001z
 				alphabet = map(chr, range(97,123))
 				for letter in alphabet:
-					if( currentScanPage+letter in illustrations and illustrations[currentScanPage+letter]['usageCount'] == 0 ):
-						illustrationKey = currentScanPage+letter
+					if( testID+letter in illustrations and illustrations[testID+letter]['usageCount'] == 0 ):
+						ilID = testID+letter
 						break;
 			
-			if( illustrationKey == None and currentScanPage in illustrations ):
-				illustrationKey = currentScanPage
-			elif( illustrationKey == None ):
+			if( ilID == None and testID in illustrations ):
+				ilID = testID
+			elif( ilID == None ):
 				logging.critical("No image file for illustration located on scan page {}.png".format(currentScanPage));
 					
 			# Convert to ppgen illustration block
-			# .il id=i_001 fn=i_001.jpg w=600 alt=''
-			outBlock.append( ".il id=i" + illustrationKey + " fn=" +  illustrations[illustrationKey]['fileName'] + " w=" + str(illustrations[illustrationKey]['dimensions'][0]) + "px" + " alt=''" )
-			illustrations[illustrationKey]['usageCount'] += 1
+			# .il id=i001 fn=i_001.jpg w=600 alt=''
+			outBlock.append( ".il id=" + ilID + " fn=" +  illustrations[ilID]['fileName'] + " w=" + str(illustrations[ilID]['dimensions'][0]) + "px" + " alt=''" )
+			illustrations[ilID]['usageCount'] += 1
 			
 			# Extract caption from illustration block
 			captionBlock = []
@@ -449,11 +454,8 @@ def updateWidths( inBuf ):
 		if "%" in curWidth:
 			ilParams['ew'] = curWidth
 		
-		# Can't use il['scanPageNum'] in case illustration has been relocated 
-		# to a different page as in the case of *[Illustration 
-		originalScanPageNum = re.sub(r"^i", "", ilParams['id'])
-		
-		imageFileWidth = images[originalScanPageNum]['dimensions'][0]
+		key = idFromFilename(il['fn'])
+		imageFileWidth = images[key]['dimensions'][0]
 		ilParams['w'] = "{}px".format(imageFileWidth)
 		
 		#TODO: bug here.. if multiple .il statements exist for the same file only the last instance will be modified
@@ -532,7 +534,7 @@ def calcImageWidths( inBuf, maxwidth ):
 	logging.info("--- Calculating widths")
 
 	illustrations = parseIllustrationBlocks( inBuf )	
-	images = buildImageDictionary()
+#	images = buildImageDictionary()
 	
 	jsonData = {}
 	for k, il in illustrations.items():
