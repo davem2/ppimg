@@ -4,8 +4,8 @@
 
 Usage:
   ppimg [-bcdiqvw] <infile> [<outfile>]
-  ppimg --gettargetwidth=<image>
-  ppimg --calcimagewidths --maxwidth=<maxwidth> <infile>
+  ppimg [-dqv] --gettargetwidth=<image>
+  ppimg [-dqv] --calcimagewidths --maxwidth=<maxwidth> <infile>
   ppimg -h | --help
   ppimg ---version
 
@@ -136,7 +136,7 @@ def parseIllustrationBlocks( inBuf ):
 
 		# Find next .il/.ca, discard all other lines
 		if( re.match(r"^\.il ", inBuf[lineNum]) ):
-#			logging.debug("Line {}: Found .il block".format(lineNum))
+			logging.debug("Line {}: Found .il block".format(lineNum))
 			startLine = lineNum
 			inBlock = []
 			captionBlock = []
@@ -170,7 +170,7 @@ def parseIllustrationBlocks( inBuf ):
 				endLine = lineNum
 			
 			# Add entry in dictionary (empty for now)
-			illustrations[ilParams['id']] = ({'ilStatement':ilStatement, 'captionBlock':captionBlock, 'ilBlock':inBlock, 'HTML':"", 'startLine':startLine, 'endLine':endLine, 'ilParams':ilParams, 'scanPageNum':currentScanPage })
+			illustrations[ilParams['fn']] = ({'ilStatement':ilStatement, 'captionBlock':captionBlock, 'ilBlock':inBlock, 'HTML':"", 'startLine':startLine, 'endLine':endLine, 'ilParams':ilParams, 'scanPageNum':currentScanPage })
 		else:
 			# Ignore lines that aren't .il/.ca
 			lineNum += 1
@@ -228,7 +228,9 @@ def buildBoilerplateDictionary( inBuf ):
 	soup = BeautifulSoup(open(infile))
 	ilBlocks = soup.find_all('div',id=re.compile("$"))
 	for il in ilBlocks:
-		illustrations[il['id']]['HTML'] = str(il);
+		src = il.img['src']
+		key = os.path.basename(src)
+		illustrations[key]['HTML'] = str(il);
 		
 	return illustrations, cssLines
 
@@ -265,25 +267,25 @@ def generateHTMLBoilerplate( inBuf ):
 		if( re.match(r"^\.il ", inBuf[lineNum]) ):
 			
 			ilParams = parseArgs(inBuf[lineNum])
-			ilID = ilParams['id']
+			ilKey = ilParams['fn']
 
 			# Sanity check.. TODO: is it legal for multiple illustrations to share the same id?
-			if( boilerplate[ilID]['startLine'] != lineNum ):
-				logging.warning("Illustration id='{}' found on unexpected line {}".format(ilID,lineNum))
+			if( boilerplate[ilKey]['startLine'] != lineNum ):
+				logging.warning("Illustration id='{}' found on unexpected line {}".format(ilKey,lineNum))
 			
 			# Replace .il/.ca block with HTML
 			outBuf.append(".if t")
 			# original .il/.ca statements
-			for line in boilerplate[ilID]['ilBlock']:
+			for line in boilerplate[ilKey]['ilBlock']:
 				outBuf.append(line)
 			outBuf.append(".if-")
 			outBuf.append(".if h")
 			outBuf.append(".li")
-			outBuf.append(boilerplate[ilID]['HTML'])
+			outBuf.append(boilerplate[ilKey]['HTML'])
 			outBuf.append(".li-")
 			outBuf.append(".if-")
 
-			lineNum = boilerplate[ilID]['endLine']
+			lineNum = boilerplate[ilKey]['endLine']
 			
 		else:
 			outBuf.append(inBuf[lineNum])
@@ -395,13 +397,13 @@ def generateIlStatement( args ):
 
 	# Add parameters individually so that order is deterministic
 	if 'id' in args:
-		ilStatement += " id='{}'".format(args['id'])
+		ilStatement += " id={}".format(args['id'])
 		del args['id']
 	if 'fn' in args:
-		ilStatement += " fn='{}'".format(args['fn'])
+		ilStatement += " fn={}".format(args['fn'])
 		del args['fn']
 	if 'link' in args:
-		ilStatement += " link='{}'".format(args['link'])
+		ilStatement += " link={}".format(args['link'])
 		del args['link']
 	if 'alt' in args:
 		ilStatement += " alt='{}'".format(args['alt'])

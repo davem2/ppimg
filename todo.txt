@@ -1,20 +1,3 @@
-- Add new option that takes a ppgen source file and converts all .il tags into equivilent HTML. This would be used in special cases when .il/.ca tags or macros are insufficient and raw HTML must be used. The generated code would be a base to work off of that is functionally equivalant to the original .il/.ca statements. 
-
-psuedocode:
-# create temporary ppgen source file that contains only .il/.ca lines 
-# run ppgen on temporary source file 
-# parse CSS (related to illustrations/captions) and illustration related HTML from output
-# using parsed css, add .de statements to output
-# replace existing .il/.ca statements with 
-#	 .if t
-#	 original .il/.ca statements
-#	 .if-
-#	 .if h
-#	 parsed HTML
-#	 .if-
-
-- Handle *[Illustration or flag it for manual resolution
-
 - Add validation option that:
 	- verifies dimensions in source match actual 
 	- checks for unused images 
@@ -25,12 +8,10 @@ psuedocode:
 
 - Instead of assuming css used based on name .ig* .ic* .. parse HTML for actual styles used
 
-- Parsing of .il/.ca statements should be its own function, add general purpose argument parser for ppgen statements as well (ppgen probably has code for this already)
-
-- Option to convert from px->% and %->px for .il w= and ew=. (using 800 or user defined value for maxwidth)
-
-- Option to update .il w= parameters to pixel width of actual file
-
 - Generate report on what was done
 	- table of illustrations procesed in the form id|fileName|width|caption(line breaks converted to <br/>)
+
+- Fix bug where newline is added to end of file with -w option (possibly other situations as well)
+
+- Fix issue with -w option that occurs when multiple instances of the same image occur within source (only last instance gets updated)
 
