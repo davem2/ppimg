@@ -38,6 +38,7 @@ import sys
 import logging
 import subprocess
 import json
+import shlex
 
 def isLineBlank( line ):
 	return re.match( r"^\s*$", line )
@@ -81,8 +82,9 @@ def findNextNonEmptyLine( buf, startLine ):
 def parseArgs(commandLine):
 	arguments = {}
 	
-	# break up command line (this will break if token contains spaces, like fn="bad name.jpg")
-	tokens = commandLine.split()
+	# break up command line 
+	tokens = shlex.split(commandLine)
+	print(tokens)
 	
 	# process parameters (skip .command)
 	for t in tokens[1:]:
@@ -400,6 +402,11 @@ def convertRawIllustrationMarkup( inBuf ):
 def generateIlStatement( args ):
 	ilStatement = ".il"
 
+	# Add quotes where needed (parameters with spaces)
+	for k, v in args.items():
+		if ' ' in v:
+			args[k] = "'{}'".format(args[k])
+
 	# Add parameters individually so that order is deterministic
 	if 'id' in args:
 		ilStatement += " id={}".format(args['id'])
@@ -411,7 +418,7 @@ def generateIlStatement( args ):
 		ilStatement += " link={}".format(args['link'])
 		del args['link']
 	if 'alt' in args:
-		ilStatement += " alt='{}'".format(args['alt'])
+		ilStatement += " alt={}".format(args['alt'])
 		del args['alt']
 	if 'w' in args:
 		ilStatement += " w={}".format(args['w'])
