@@ -15,3 +15,12 @@
 
 - Fix issue with -w option that occurs when multiple instances of the same image occur within source (only last instance gets updated)
 
+- Check for unused files in /images
+
+- Need a way for --calcimagewidths to handle images in source file that are not part of .il statements (like <img>).. if manual addition is the chosen method to handle this rewrite calcimagewidths to preserve these manual additions on rewrites.
+
+- BuildImageDictionary needs to handle nonimage files in images/ folder (like ignore subdirectories). Implement isFileImageFile()
+
+- Standardize if statements and other similar to use () or not..
+
+

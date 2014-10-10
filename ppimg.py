@@ -96,6 +96,10 @@ def parseArgs(commandLine):
 	return(arguments)
 
 
+def isFileImageFile(fn):
+	# TODO.. use filename? Test with Image.open?
+	return True
+
 def buildImageDictionary():
 	# Build dictionary of image files in images/ directory
 	files = sorted(glob.glob("images/*"))
@@ -103,24 +107,26 @@ def buildImageDictionary():
 	logging.info("------ Taking inventory of /image folder")
 	images = {}
 	for f in files:
-		try:
-			img = Image.open(f)
-			img.load()
-		except:
-			logging.critical("Error loading image: {}".format(f))
+		if isFileImageFile:
+			try:
+				img = Image.open(f)
+				img.load()
+			except:
+				logging.critical("Error loading image: {}".format(f))
 
-		m = re.match(r"images/([^\.]+)", f)
-		if( m ):        
-			fn = os.path.basename(f)
-			anchorID = idFromFilename(fn)
-			logging.debug("Found image {} '{}' {}".format(anchorID,f,img.size))
-			scanPageNum = re.sub("[^0-9]","",m.group(1))
-			key = idFromFilename(fn)
-			images[key] = ({'anchorID':anchorID, 'fileName':fn, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
-			m2 = re.match(r"images/i_\d{3}[a-z]?\.", f)
-			if not m2:
-				logging.warning("File '{}' does not match expected naming convention.. i_001a".format(f))
-
+			m = re.match(r"images/([^\.]+)", f)
+			if( m ):        
+				fn = os.path.basename(f)
+				anchorID = idFromFilename(fn)
+				logging.debug("Found image {} '{}' {}".format(anchorID,f,img.size))
+				scanPageNum = re.sub("[^0-9]","",m.group(1))
+				key = idFromFilename(fn)
+				images[key] = ({'anchorID':anchorID, 'fileName':fn, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
+				m2 = re.match(r"images/i_\d{3}[a-z]?\.", f)
+				if not m2:
+					logging.warning("File '{}' does not match expected naming convention.. i_001a".format(f))
+		
+	print(images)
 	logging.info("--------- Found {} images".format(len(images)))
 	
 	return images;
@@ -480,7 +486,7 @@ def loadFile(fn):
 	encoding = ""
 	
 	if not os.path.isfile(fn):
-		logging.critical("specified file {} not found" + format(fn))
+		logging.critical("specified file '{}' not found".format(fn))
 
 	if encoding == "":
 		try:
