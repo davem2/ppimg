@@ -84,7 +84,7 @@ def parseArgs(commandLine):
 	
 	# break up command line 
 	tokens = shlex.split(commandLine)
-	print(tokens)
+#	print(tokens)
 	
 	# process parameters (skip .command)
 	for t in tokens[1:]:
@@ -126,7 +126,7 @@ def buildImageDictionary():
 				if not m2:
 					logging.warning("File '{}' does not match expected naming convention.. i_001a".format(f))
 		
-	print(images)
+#	print(images)
 	logging.info("--------- Found {} images".format(len(images)))
 	
 	return images;
@@ -148,7 +148,7 @@ def parseIllustrationBlocks( inBuf ):
 
 		# Find next .il/.ca, discard all other lines
 		if( re.match(r"^\.il ", inBuf[lineNum]) ):
-			logging.debug("Line {}: Found .il block".format(lineNum))
+			logging.debug("Line {}: Found .il '{}'".format(lineNum,inBuf[lineNum]))
 			startLine = lineNum
 			inBlock = []
 			captionBlock = []
@@ -543,6 +543,22 @@ def getTargetWidth( image ):
 	
 	return width
 
+def loadJSON( fn ):
+	data = {}
+	try:
+		with open(fn) as f:
+			data = json.load(f)
+	except FileNotFoundError:
+		logging.info("------ JSON file '{}' not found, using empty dictionary".format(fn))
+		pass
+	except:
+		raise
+	else:
+		logging.info("------ Loaded JSON from file '{}'".format(fn))
+		
+		
+	return data
+		
 
 def calcImageWidths( inBuf, maxwidth ):
 	logging.info("--- Calculating widths")
@@ -550,10 +566,9 @@ def calcImageWidths( inBuf, maxwidth ):
 	illustrations = parseIllustrationBlocks( inBuf )	
 #	images = buildImageDictionary()
 	
-	jsonData = {}
+	jsonData = loadJSON("images.json")
+	
 	for k, il in illustrations.items():
-		logging.debug("Source .il: {}".format(il['ilStatement']))
-
 		ilParams = il['ilParams']
 		
 		# Check image percentage
@@ -566,15 +581,14 @@ def calcImageWidths( inBuf, maxwidth ):
 			logging.error("w or ew parameter must be expressed in % for width to be calculated")
 		
 		calculatedWidth = int(scale * int(maxwidth))
-
-		logging.debug("Calculated width: {}".format(calculatedWidth))
 	
 		# Add to data
 		key = "images/"+ilParams['fn']
+		logging.debug("Key: {}, Calculated width: {}".format(key, calculatedWidth))
 		jsonData[key] = ({'targetWidth':calculatedWidth})
 #		images[scanPageNum] = ({'anchorID':anchorID, 'fileName':f, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
 		
-	logging.info("--- Updating images.json with calculated widths")
+	logging.info("------ Updating images.json with calculated widths")
 	# Write out JSON
 	f = open("images.json",'w')
 	f.write(json.dumps(jsonData))
@@ -588,12 +602,12 @@ def calcImageWidths( inBuf, maxwidth ):
 	if( proc.returncode != 0 ):
 		logging.critical("Error occured processing {}".format(commandLine))
 	
-	logging.info("***********************************************")
-	logging.info("***                                        ****")
-	logging.info("*** RUN 'make' TO RESCALE FILES IN images/ ****")
-	logging.info("*** THEN 'ppimg -w' TO UPDATE PPGEN SRC    ****")
-	logging.info("***                                        ****")
-	logging.info("***********************************************")
+	logging.info("*************************************************")
+	logging.info("***                                          ****")
+	logging.info("***  RUN 'make' TO RESCALE FILES IN images/  ****")
+	logging.info("***  THEN 'ppimg -w' TO UPDATE PPGEN SRC     ****")
+	logging.info("***                                          ****")
+	logging.info("*************************************************")
 
 
 def main():

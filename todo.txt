@@ -4,8 +4,6 @@
 	- checks that images exist
 	- look at ppvimage for ideas
 
-- ^ is redundant for re.match?
-
 - Instead of assuming css used based on name .ig* .ic* .. parse HTML for actual styles used
 
 - Generate report on what was done
@@ -21,6 +19,7 @@
 
 - BuildImageDictionary needs to handle nonimage files in images/ folder (like ignore subdirectories). Implement isFileImageFile()
 
-- Standardize if statements and other similar to use () or not..
+- Refactor strings to use .format
 
+- Standardize if, while statements and other similar to use () or not.. fncall( x ) to fncall(x)
 
