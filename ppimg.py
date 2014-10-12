@@ -121,7 +121,7 @@ def buildImageDictionary():
 			if not re.match(r"i_\d{3,4}[a-z]?\.", fn):
 				logging.warning("File '{}' does not match expected naming convention (i_001, i_001a)".format(fn))
 		
-	print(images)
+#	print(images)
 	logging.info("--------- Found {} images".format(len(images)))
 	
 	return images;
