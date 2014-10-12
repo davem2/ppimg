@@ -1,13 +1,13 @@
-ppimg
-=====
+#ppimg
 
-Performs various tasks related to illustrations in the post-processing of books for pgdp.org using the ppgen post-processing tool.
+Performs various tasks related to illustrations during the post-processing of books for pgdp.org using the ppgen post-processing tool.
 
-Installation
-============
+##Installing
+    
+### Manually ###
 
-Dependencies
-------------
-pip install docopt
-pip install Pillow
-pip install beautifulsoup4
+Clone this repository, or download zip.
+
+Then install the required python dependencies with:
+
+    pip install docopt Pillow beautifulsoup4
