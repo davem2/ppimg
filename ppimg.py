@@ -53,6 +53,7 @@ def idFromFilename( fn ):
 	id = os.path.splitext(id)[0] # strip off extension
 	return id
 	
+	
 def idFromPageNumber( pn ):
 	id =  'i_{}'.format(pn)
 	return id
@@ -663,7 +664,7 @@ def main():
 			# Save file
 			f = open(outfile,'w')
 			for line in outBuf:
-				f.write(line+'\r\n')
+				f.write(line+'\n')
 			f.close()
 	
 	return
