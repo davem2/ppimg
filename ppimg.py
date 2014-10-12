@@ -41,11 +41,11 @@ import json
 import shlex
 
 def isLineBlank( line ):
-	return re.match( r"^\s*$", line )
+	return re.match(r"^\s*$", line)
 	
 	
 def isLineComment( line ):
-	return re.match( r"^\/\/ *$", line )
+	return re.match(r"^\/\/ *$", line)
 	
 	
 def idFromFilename( fn ):
@@ -90,7 +90,7 @@ def parseArgs(commandLine):
 	for t in tokens[1:]:
 		t = re.sub(r"[\'\"]","",t)
 		m = re.match(r"(.+)=(.+)", t)
-		if( m ):
+		if m:
 			arguments[m.group(1)]=m.group(2)
 		
 	return(arguments)
@@ -107,7 +107,7 @@ def buildImageDictionary():
 			img = Image.open(f)
 			img.load()
 		except IOError:
-			logging.warning("File '{}' could not be loaded ... skipping".format(f))
+			logging.warning("Error loading '{}' ... skipping".format(f))
 		except:
 			raise
 		else:
@@ -137,12 +137,12 @@ def parseIllustrationBlocks( inBuf ):
 	while lineNum < len(inBuf):
 		# Keep track of active scanpage, page numbers must be 
 		m = re.match(r"\/\/ (\d+)\.[png|jpg|jpeg]", inBuf[lineNum])
-		if( m ):
+		if m:
 			currentScanPage = m.group(1)
 #			logging.debug("------ Processing page "+currentScanPage)
 
 		# Find next .il/.ca, discard all other lines
-		if( re.match(r"^\.il ", inBuf[lineNum]) ):
+		if re.match(r"^\.il ", inBuf[lineNum]):
 			logging.debug("Line {}: Found .il '{}'".format(lineNum,inBuf[lineNum]))
 			startLine = lineNum
 			inBlock = []
@@ -155,9 +155,9 @@ def parseIllustrationBlocks( inBuf ):
 			ilParams = parseArgs(ilStatement)
 
 			# Is there a caption?
-			if( re.match(r"^\.ca", inBuf[lineNum]) ):
+			if re.match(r"^\.ca", inBuf[lineNum]):
 				# Is .ca single line style?
-				if( re.match(r"^\.ca \S+", inBuf[lineNum]) ):
+				if re.match(r"^\.ca \S+", inBuf[lineNum]):
 					inBlock.append(inBuf[lineNum])
 					caption = re.sub("^\.ca ","", inBuf[lineNum]) # strip ".ca "
 					captionBlock.append(caption)
@@ -166,7 +166,7 @@ def parseIllustrationBlocks( inBuf ):
 				else:
 					# Copy caption block
 					inBlock.append(inBuf[lineNum])
-					while( not re.match(r"^\.ca\-", inBuf[lineNum]) ):
+					while not re.match(r"^\.ca\-", inBuf[lineNum]):
 						lineNum += 1
 						inBlock.append(inBuf[lineNum])
 						captionBlock.append(inBuf[lineNum])
@@ -193,7 +193,7 @@ def buildBoilerplateDictionary( inBuf ):
 	lineNum = 0
 	
 	boilerplate = {};
-	illustrations = parseIllustrationBlocks( inBuf )	
+	illustrations = parseIllustrationBlocks(inBuf)
 	
 	logging.info("------ Generating temporary ppgen source file containing parsed .il/.ca statements")
 	tempFileName = "ppimgtempsrc" # TODO: use tempfile functions instead? will clobber existing if named exists
@@ -208,13 +208,13 @@ def buildBoilerplateDictionary( inBuf ):
 	ppgenCommandLine=['ppgen','-i',tempFileName] # TODO: this wont work on windows..
 	proc=subprocess.Popen(ppgenCommandLine)
 	proc.wait()
-	if( proc.returncode != 0 ):
+	if proc.returncode != 0:
 		logging.critical("Error occured during ppgen processing")
 
 	logging.info("------ Parsing ppgen generated HTML")
 	# Open ppgen generated HTML and represent as an array of lines
 	infile = tempFileName + ".html"
-	inBuf = loadFile( infile )
+	inBuf = loadFile(infile)
 	
 	logging.info("--------- Parsing CSS")
 	cssLines = []
@@ -261,7 +261,7 @@ def generateHTMLBoilerplate( inBuf ):
 
 	logging.info("--- Generating HTML Boilerplate")
 	
-	boilerplate, cssLines = buildBoilerplateDictionary( inBuf )
+	boilerplate, cssLines = buildBoilerplateDictionary(inBuf)
 	
 	logging.info("--- Adding boilerplate to original")
 	outBuf = []
@@ -272,13 +272,13 @@ def generateHTMLBoilerplate( inBuf ):
 	logging.info("------ Adding HTML")	
 	lineNum = 0
 	while lineNum < len(inBuf):
-		if( re.match(r"^\.il ", inBuf[lineNum]) ):
+		if re.match(r"^\.il ", inBuf[lineNum]):
 			
 			ilParams = parseArgs(inBuf[lineNum])
 			ilKey = idFromFilename(ilParams['fn'])
 
 			# Sanity check.. TODO: is it legal for multiple illustrations to share the same id?
-			if( boilerplate[ilKey]['startLine'] != lineNum ):
+			if boilerplate[ilKey]['startLine'] != lineNum:
 				logging.warning("Illustration id='{}' found on unexpected line {}".format(ilKey,lineNum))
 			
 			# Replace .il/.ca block with HTML
@@ -317,24 +317,24 @@ def convertRawIllustrationMarkup( inBuf ):
 	while lineNum < len(inBuf):
 		# Keep track of active scanpage, page numbers must be 
 		m = re.match(r"\/\/ (\d+)\.[png|jpg|jpeg]", inBuf[lineNum])
-		if( m ):
+		if m:
 			currentScanPage = m.group(1)
 #			logging.debug("------ Processing page "+currentScanPage)
 
 		# Copy until next illustration block
-		if( re.match(r"^\[Illustration", inBuf[lineNum]) or re.match(r"^\*\[Illustration", inBuf[lineNum]) ):
+		if re.match(r"^\[Illustration", inBuf[lineNum]) or re.match(r"^\*\[Illustration", inBuf[lineNum]):
 			inBlock = []
 			outBlock = []
 		
 			# *[Illustration:] tags need to be handled manually afterward (can't reposition before or illustration will change page location)
-			if( re.match(r"^\*\[Illustration", inBuf[lineNum]) ):
+			if re.match(r"^\*\[Illustration", inBuf[lineNum]):
 				asteriskIllustrationTagCount += 1
 			else:
 				illustrationTagCount += 1
 
 			# Copy illustration block
 			inBlock.append(inBuf[lineNum])
-			while( lineNum < len(inBuf)-1 and not re.search(r"]$", inBuf[lineNum]) ):
+			while lineNum < len(inBuf)-1 and not re.search(r"]$", inBuf[lineNum]):
 				lineNum += 1
 				inBlock.append(inBuf[lineNum])
 			
@@ -343,23 +343,23 @@ def convertRawIllustrationMarkup( inBuf ):
 			# Handle multiple illustrations per page, must be named (i_001a, i_001b, ...) or (i_001, i_001a, i_001b, ...)
 			ilID = None
 			testID = idFromPageNumber(currentScanPage)
-			if( testID in illustrations and illustrations[testID]['usageCount'] == 0 ):
+			if testID in illustrations and illustrations[testID]['usageCount'] == 0:
 				ilID = testID
 			else: # try i_001a, i_001b, ..., i_001z
 				alphabet = map(chr, range(97,123))
 				for letter in alphabet:
-					if( testID+letter in illustrations and illustrations[testID+letter]['usageCount'] == 0 ):
+					if testID+letter in illustrations and illustrations[testID+letter]['usageCount'] == 0:
 						ilID = testID+letter
 						break;
 			
-			if( ilID == None and testID in illustrations ):
+			if ilID == None and testID in illustrations:
 				ilID = testID
-			elif( ilID == None ):
+			elif ilID == None:
 				logging.critical("No image file for illustration located on scan page {}.png".format(currentScanPage));
 					
 			# Convert to ppgen illustration block
 			# .il id=i001 fn=i_001.jpg w=600 alt=''
-			outBlock.append( ".il id=" + ilID + " fn=" +  illustrations[ilID]['fileName'] + " w=" + str(illustrations[ilID]['dimensions'][0]) + "px" + " alt=''" )
+			outBlock.append(".il id=" + ilID + " fn=" +  illustrations[ilID]['fileName'] + " w=" + str(illustrations[ilID]['dimensions'][0]) + "px" + " alt=''")
 			illustrations[ilID]['usageCount'] += 1
 			
 			# Extract caption from illustration block
@@ -371,10 +371,10 @@ def convertRawIllustrationMarkup( inBuf ):
 				captionBlock.append(line)
 
 		    # .ca SOUTHAMPTON BAR IN THE OLDEN TIME.
-			if( len(captionBlock) == 1 and captionBlock[0] == "" ):
+			if len(captionBlock) == 1 and captionBlock[0] == "":
 				# No caption
 				pass
-			elif( len(captionBlock) == 1 ):
+			elif len(captionBlock) == 1:
 				# One line caption
 				outBlock.append(".ca " + captionBlock[0]);
 			else:
@@ -395,7 +395,7 @@ def convertRawIllustrationMarkup( inBuf ):
 			lineNum += 1
 	
 	logging.info("------ Processed {} [Illustrations] tags".format(illustrationTagCount))
-	if( asteriskIllustrationTagCount > 0 ):
+	if asteriskIllustrationTagCount > 0:
 		logging.warning("Found {} *[Illustrations] tags; ppgen .il/.ca statements have been generated, but relocation to paragraph break must be performed manually.".format(asteriskIllustrationTagCount))
 
 	return outBuf;
@@ -449,7 +449,7 @@ def updateWidths( inBuf ):
 	
 	logging.info("--- Updating widths")
 
-	illustrations = parseIllustrationBlocks( inBuf )	
+	illustrations = parseIllustrationBlocks(inBuf)
 	images = buildImageDictionary()
 	
 	# update width parameter in each .il statement
@@ -558,7 +558,7 @@ def loadJSON( fn ):
 def calcImageWidths( inBuf, maxwidth ):
 	logging.info("--- Calculating widths")
 
-	illustrations = parseIllustrationBlocks( inBuf )	
+	illustrations = parseIllustrationBlocks(inBuf)
 #	images = buildImageDictionary()
 	
 	jsonData = loadJSON("images.json")
@@ -594,7 +594,7 @@ def calcImageWidths( inBuf, maxwidth ):
 	commandLine=['touch'] + masterImageFiles # TODO: this wont work on windows..
 	proc=subprocess.Popen(commandLine)
 	proc.wait()
-	if( proc.returncode != 0 ):
+	if proc.returncode != 0:
 		logging.critical("Error occured processing {}".format(commandLine))
 	
 	logging.info("*************************************************")
@@ -610,28 +610,28 @@ def main():
 
 	# Configure logging
 	logLevel = logging.INFO #default
-	if( args['--verbose'] ):
+	if args['--verbose']:
 		logLevel = logging.DEBUG
-	elif( args['--quiet'] ):
+	elif args['--quiet']:
 		logLevel = logging.ERROR
 		
 	logging.basicConfig(format='%(levelname)s: %(message)s', level=logLevel)			
 	logging.debug(args)
 			
-	if( args['--gettargetwidth'] ):
+	if args['--gettargetwidth']:
 		width = getTargetWidth(args['--gettargetwidth'])
 		print(width)
 
 	else:
 		# Process required command line arguments
-		outfile = createOutputFileName( args['<infile>'] )
-		if( args['<outfile>'] ):
+		outfile = createOutputFileName(args['<infile>'])
+		if args['<outfile>']:
 			outfile = args['<outfile>']
 			
 		infile = args['<infile>']
 
 		# Open source file and represent as an array of lines
-		inBuf = loadFile( infile )
+		inBuf = loadFile(infile)
 
 		# Process optional command line arguments
 		doBoilerplate = args['--boilerplate']
@@ -647,19 +647,19 @@ def main():
 		# Process source document
 		logging.info("Processing '{}' to '{}'".format(infile,outfile))
 		outBuf = []
-		if( doIllustrations ):
-			outBuf = convertRawIllustrationMarkup( inBuf ) 
+		if doIllustrations:
+			outBuf = convertRawIllustrationMarkup(inBuf)
 			inBuf = outBuf
-		elif( doBoilerplate ):
-			outBuf = generateHTMLBoilerplate( inBuf ) 
+		elif doBoilerplate:
+			outBuf = generateHTMLBoilerplate(inBuf)
 			inBuf = outBuf
-		elif( doUpdateWidths ):
-			outBuf = updateWidths( inBuf ) 
+		elif doUpdateWidths:
+			outBuf = updateWidths(inBuf)
 			inBuf = outBuf
-		elif( calcimagewidths ):
-			calcImageWidths( inBuf, args['--maxwidth'] )
+		elif calcimagewidths:
+			calcImageWidths(inBuf, args['--maxwidth'])
 
-		if( outBuf and not args['--dryrun'] ):
+		if outBuf and not args['--dryrun']:
 			# Save file
 			f = open(outfile,'w')
 			for line in outBuf:
