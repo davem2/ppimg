@@ -111,19 +111,17 @@ def buildImageDictionary():
 		except:
 			raise
 		else:
-			m = re.match(r"images/([^\.]+)", f)
-			if( m ):        
-				fn = os.path.basename(f)
-				anchorID = idFromFilename(fn)
-				logging.debug("Found image {} '{}' {}".format(anchorID,f,img.size))
-				scanPageNum = re.sub("[^0-9]","",m.group(1))
-				key = idFromFilename(fn)
-				images[key] = ({'anchorID':anchorID, 'fileName':fn, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
+			fn = os.path.basename(f)
+			anchorID = idFromFilename(fn)
+			logging.debug("Found image id={} fn='{}' size={}".format(anchorID,fn,img.size))
+			scanPageNum = re.sub("[^0-9]","",fn)
+			key = idFromFilename(fn)
+			images[key] = ({'anchorID':anchorID, 'fileName':fn, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
 
-				if not re.match(r"images/i_\d{3}[a-z]?\.", f):
-					logging.warning("Processed file '{}' that did not match expected naming convention (i_001, i_001a)".format(f))
+			if not re.match(r"i_\d{3,4}[a-z]?\.", fn):
+				logging.warning("File '{}' does not match expected naming convention (i_001, i_001a)".format(fn))
 		
-#	print(images)
+	print(images)
 	logging.info("--------- Found {} images".format(len(images)))
 	
 	return images;
