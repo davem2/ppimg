@@ -97,6 +97,34 @@ def parseArgs(commandLine):
 	return(arguments)
 
 
+def checkForIssues( inBuf ):
+	
+	images = buildImageDictionary()
+	illustrations = parseIllustrationBlocks(inBuf)
+
+	logging.info("------ Checking for issues")
+
+	# Missing images
+	for k, i in illustrations.items():
+		if not k in images:
+			logging.error("Missing image {}".format(i['ilParams']['fn']))
+		
+	# Unused images
+	for k, i in images.items():
+		if not k in illustrations:
+			logging.error("Unused image {}".format(i['fileName']))
+	
+	# w= parameter specified in px does not match actual width
+	for k, i in illustrations.items():
+		if not '%' in i['ilParams']['w']:
+			w = int(re.sub("[^0-9]","",i['ilParams']['w']))
+			if k in images and w != images[k]['dimensions'][0]:
+				logging.error("w parameter ({}px) does not match actual image width ({}px)\nLine {}: {}".format(w,images[k]['dimensions'][0],i['startLine'],i['ilStatement']))
+			
+	return
+
+
+
 def buildImageDictionary():
 	# Build dictionary of image files in images/ directory
 	files = sorted(glob.glob("images/*"))
@@ -177,7 +205,7 @@ def parseIllustrationBlocks( inBuf ):
 			else:
 				endLine = lineNum
 			
-			# Add entry in dictionary (empty for now)
+			# Add entry in dictionary
 			key = idFromFilename(ilParams['fn'])
 			illustrations[key] = ({'ilStatement':ilStatement, 'captionBlock':captionBlock, 'ilBlock':inBlock, 'HTML':"", 'startLine':startLine, 'endLine':endLine, 'ilParams':ilParams, 'scanPageNum':currentScanPage })
 		else:
@@ -483,6 +511,7 @@ def loadFile(fn):
 	
 	if not os.path.isfile(fn):
 		logging.critical("specified file '{}' not found".format(fn))
+		exit( -1 )
 
 	if encoding == "":
 		try:
@@ -638,7 +667,8 @@ def main():
 		doBoilerplate = args['--boilerplate']
 		doIllustrations = args['--illustrations']
 		doUpdateWidths = args['--updatewidths']
-		calcimagewidths = args['--calcimagewidths']
+		doCalcImageWidths = args['--calcimagewidths']
+		doCheckIssues = args['--check']
 		
 		# Default TODO (smart based on what is given? raw/ppgen source)
 	#	if( not doBoilerplate and \
@@ -657,8 +687,11 @@ def main():
 		elif doUpdateWidths:
 			outBuf = updateWidths(inBuf)
 			inBuf = outBuf
-		elif calcimagewidths:
+		elif doCalcImageWidths:
 			calcImageWidths(inBuf, args['--maxwidth'])
+		
+		if doCheckIssues:
+			checkForIssues(inBuf)
 
 		if outBuf and not args['--dryrun']:
 			# Save file
