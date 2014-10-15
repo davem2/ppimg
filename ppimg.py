@@ -102,7 +102,7 @@ def checkForIssues( inBuf ):
 	images = buildImageDictionary()
 	illustrations = parseIllustrationBlocks(inBuf)
 
-	logging.info("------ Checking for issues")
+	logging.info("--- Checking for issues")
 
 	# Missing images
 	for k, i in illustrations.items():
@@ -129,7 +129,7 @@ def buildImageDictionary():
 	# Build dictionary of image files in images/ directory
 	files = sorted(glob.glob("images/*"))
 	
-	logging.info("------ Taking inventory of /image folder")
+	logging.info("--- Taking inventory of /image folder")
 	images = {}
 	for f in files:
 		try:
@@ -151,7 +151,7 @@ def buildImageDictionary():
 				logging.warning("File '{}' does not match expected naming convention (i_001, i_001a)".format(fn))
 		
 #	print(images)
-	logging.info("--------- Found {} images".format(len(images)))
+	logging.info("----- Found {} images".format(len(images)))
 	
 	return images;
 	
@@ -162,13 +162,13 @@ def parseIllustrationBlocks( inBuf ):
 	currentScanPage = 0;
 	illustrations = {};
 	
-	logging.info("------ Parsing .il/.ca statements from input")
+	logging.info("--- Parsing .il/.ca statements from input")
 	while lineNum < len(inBuf):
 		# Keep track of active scanpage, page numbers must be 
 		m = re.match(r"\/\/ (\d+)\.[png|jpg|jpeg]", inBuf[lineNum])
 		if m:
 			currentScanPage = m.group(1)
-#			logging.debug("------ Processing page "+currentScanPage)
+#			logging.debug("--- Processing page "+currentScanPage)
 
 		# Find next .il/.ca, discard all other lines
 		if re.match(r"^\.il ", inBuf[lineNum]):
@@ -212,7 +212,7 @@ def parseIllustrationBlocks( inBuf ):
 			# Ignore lines that aren't .il/.ca
 			lineNum += 1
 		
-	logging.info("--------- Found {} .il statements".format(len(illustrations)))
+	logging.info("----- Found {} .il statements".format(len(illustrations)))
 
 	return illustrations
 	
@@ -224,7 +224,7 @@ def buildBoilerplateDictionary( inBuf ):
 	boilerplate = {};
 	illustrations = parseIllustrationBlocks(inBuf)
 	
-	logging.info("------ Generating temporary ppgen source file containing parsed .il/.ca statements")
+	logging.info("--- Generating temporary ppgen source file containing parsed .il/.ca statements")
 	tempFileName = "ppimgtempsrc" # TODO: use tempfile functions instead? will clobber existing if named exists
 	f = open(tempFileName,'w')
 	for k, il in illustrations.items():
@@ -233,19 +233,19 @@ def buildBoilerplateDictionary( inBuf ):
 		f.write('\n')
 	f.close()
 	
-	logging.info("------ Running ppgen against temporary ppgen source file")
+	logging.info("--- Running ppgen against temporary ppgen source file")
 	ppgenCommandLine=['ppgen','-i',tempFileName] # TODO: this wont work on windows..
 	proc=subprocess.Popen(ppgenCommandLine)
 	proc.wait()
 	if proc.returncode != 0:
 		logging.critical("Error occured during ppgen processing")
 
-	logging.info("------ Parsing ppgen generated HTML")
+	logging.info("--- Parsing ppgen generated HTML")
 	# Open ppgen generated HTML and represent as an array of lines
 	infile = tempFileName + ".html"
 	inBuf = loadFile(infile)
 	
-	logging.info("--------- Parsing CSS")
+	logging.info("----- Parsing CSS")
 	cssLines = []
 	
 	for line in inBuf:
@@ -260,7 +260,7 @@ def buildBoilerplateDictionary( inBuf ):
 			cssLines.append(line)
 			logging.debug("Add css: "+line)
 			
-	logging.info("--------- Parsing HTML")
+	logging.info("----- Parsing HTML")
 	# Soupify HTML
 	soup = BeautifulSoup(open(infile))
 	ilBlocks = soup.find_all('div',id=re.compile("$"))
@@ -288,17 +288,17 @@ def generateHTMLBoilerplate( inBuf ):
 #    .li-
 #	 .if-
 
-	logging.info("--- Generating HTML Boilerplate")
+	logging.info("-- Generating HTML Boilerplate")
 	
 	boilerplate, cssLines = buildBoilerplateDictionary(inBuf)
 	
-	logging.info("--- Adding boilerplate to original")
+	logging.info("-- Adding boilerplate to original")
 	outBuf = []
-	logging.info("------ Adding CSS")	
+	logging.info("--- Adding CSS")	
 	for line in cssLines:
 		outBuf.append(".de " + line)
 	
-	logging.info("------ Adding HTML")	
+	logging.info("--- Adding HTML")	
 	lineNum = 0
 	while lineNum < len(inBuf):
 		if re.match(r"^\.il ", inBuf[lineNum]):
@@ -338,17 +338,17 @@ def convertRawIllustrationMarkup( inBuf ):
 	illustrationTagCount = 0
 	asteriskIllustrationTagCount = 0
 		
-	logging.info("--- Processing illustrations")
+	logging.info("-- Processing illustrations")
 	
 	illustrations = buildImageDictionary()
 	
-	logging.info("------ Converting [Illustration] tags")
+	logging.info("--- Converting [Illustration] tags")
 	while lineNum < len(inBuf):
 		# Keep track of active scanpage, page numbers must be 
 		m = re.match(r"\/\/ (\d+)\.[png|jpg|jpeg]", inBuf[lineNum])
 		if m:
 			currentScanPage = m.group(1)
-#			logging.debug("------ Processing page "+currentScanPage)
+#			logging.debug("--- Processing page "+currentScanPage)
 
 		# Copy until next illustration block
 		if re.match(r"^\[Illustration", inBuf[lineNum]) or re.match(r"^\*\[Illustration", inBuf[lineNum]):
@@ -423,7 +423,7 @@ def convertRawIllustrationMarkup( inBuf ):
 			outBuf.append(inBuf[lineNum])
 			lineNum += 1
 	
-	logging.info("------ Processed {} [Illustrations] tags".format(illustrationTagCount))
+	logging.info("--- Processed {} [Illustrations] tags".format(illustrationTagCount))
 	if asteriskIllustrationTagCount > 0:
 		logging.warning("Found {} *[Illustrations] tags; ppgen .il/.ca statements have been generated, but relocation to paragraph break must be performed manually.".format(asteriskIllustrationTagCount))
 
@@ -476,13 +476,13 @@ def generateIlStatement( args ):
 def updateWidths( inBuf ):
 	outBuf = inBuf
 	
-	logging.info("--- Updating widths")
+	logging.info("-- Updating widths")
 
 	illustrations = parseIllustrationBlocks(inBuf)
 	images = buildImageDictionary()
 	
 	# update width parameter in each .il statement
-	logging.info("------ Modifying .il statements to match actual width dimension of image file")
+	logging.info("--- Modifying .il statements to match actual width dimension of image file")
 	for k, il in illustrations.items():
 		logging.debug("Original .il: {}".format(il['ilStatement']))
 
@@ -574,19 +574,19 @@ def loadJSON( fn ):
 		with open(fn) as f:
 			data = json.load(f)
 	except FileNotFoundError:
-		logging.info("------ JSON file '{}' not found, using empty dictionary".format(fn))
+		logging.info("--- JSON file '{}' not found, using empty dictionary".format(fn))
 		pass
 	except:
 		raise
 	else:
-		logging.info("------ Loaded JSON from file '{}'".format(fn))
+		logging.info("--- Loaded JSON from file '{}'".format(fn))
 		
 		
 	return data
 		
 
 def calcImageWidths( inBuf, maxwidth ):
-	logging.info("--- Calculating widths")
+	logging.info("-- Calculating widths")
 
 	illustrations = parseIllustrationBlocks(inBuf)
 #	images = buildImageDictionary()
@@ -613,7 +613,7 @@ def calcImageWidths( inBuf, maxwidth ):
 		jsonData[key] = ({'targetWidth':calculatedWidth})
 #		images[scanPageNum] = ({'anchorID':anchorID, 'fileName':f, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
 		
-	logging.info("------ Updating images.json with calculated widths")
+	logging.info("--- Updating images.json with calculated widths")
 	# Write out JSON
 	f = open("images.json",'w')
 	f.write(json.dumps(jsonData))
