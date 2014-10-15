@@ -112,7 +112,8 @@ def checkForIssues( inBuf ):
 	# Unused images
 	for k, i in images.items():
 		if not k in illustrations:
-			logging.error("Unused image {}".format(i['fileName']))
+			if i['fileName'] != "cover.jpg":
+				logging.error("Unused image {}".format(i['fileName']))
 	
 	# w= parameter specified in px does not match actual width
 	for k, i in illustrations.items():
@@ -511,7 +512,7 @@ def loadFile(fn):
 	
 	if not os.path.isfile(fn):
 		logging.critical("specified file '{}' not found".format(fn))
-		exit( -1 )
+		exit(1)
 
 	if encoding == "":
 		try:
