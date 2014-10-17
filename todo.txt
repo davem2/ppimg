@@ -22,3 +22,5 @@
 - Standardize if, while statements and other similar to use () or not.. fncall( x ) to fncall(x)
 
 - buildImageDictionary should take image path as argument
+
+- Add support for linked images (check option.. others areas?)

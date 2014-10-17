@@ -3,9 +3,8 @@
 """ppimg
 
 Usage:
-  ppimg [-bcdiqvw] <infile> [<outfile>]
-  ppimg [-dqv] --gettargetwidth=<image>
-  ppimg [-dqv] --calcimagewidths --maxwidth=<maxwidth> <infile>
+  ppimg [-bcdiqvw] [--calcimagewidths] [--maxwidth=<maxwidth>] <infile> [<outfile>]
+  ppimg --gettargetwidth=<image>
   ppimg -h | --help
   ppimg ---version
 
@@ -97,6 +96,13 @@ def parseArgs(commandLine):
 	return(arguments)
 
 
+def getFileSizeInKb( fn ):
+	statinfo = os.stat(fn)
+	sizeInBytes = statinfo.st_size
+	sizeInKb = sizeInBytes / 1000
+	
+	return sizeInKb
+
 def checkForIssues( inBuf ):
 	
 	images = buildImageDictionary()
@@ -104,23 +110,41 @@ def checkForIssues( inBuf ):
 
 	logging.info("--- Checking for issues")
 
-	# Missing images
+	# Unused images
+	for k, i in images.items():
+#		if not k in illustrations and i['fileName'] != "cover.jpg":
+		if not k in illustrations:
+			logging.error("Unused image {}".format(i['fileName']))
+
+		#	Image Display Dimensions: General Guidelines
+		#		Thumbnail: under 40 KB, 300 - 400 pixels in width or height (whichever is larger)
+		#		Images Displayed Only In-line: under 100 KB, 600 - 700 pixels in width or height (whichever is larger)
+		#		Full-Size Image Linked from a Thumbnail: under 200 KB, 800 - 1200 pixels in width or height (whichever is larger)
+		MAX_W=700
+		MAX_H=700
+		MAX_SIZE=100
+		w = i['dimensions'][0]
+		h = i['dimensions'][1]
+		size = int(getFileSizeInKb(os.path.join("images", i['fileName'])))
+		if w > MAX_W:
+			logging.warning("{} width {}px > {}px".format(i['fileName'],w,MAX_W))
+		if h > MAX_H:
+			logging.warning("{} height {}px > {}px".format(i['fileName'],h,MAX_H))
+		if size > MAX_SIZE:
+			logging.warning("{} size {}KB > {}KB".format(i['fileName'],size,MAX_SIZE))
+
+	
 	for k, i in illustrations.items():
+		
+		# Missing images
 		if not k in images:
 			logging.error("Missing image {}".format(i['ilParams']['fn']))
 		
-	# Unused images
-	for k, i in images.items():
-		if not k in illustrations:
-			if i['fileName'] != "cover.jpg":
-				logging.error("Unused image {}".format(i['fileName']))
-	
-	# w= parameter specified in px does not match actual width
-	for k, i in illustrations.items():
+		# w= parameter specified in px does not match actual width
 		if not '%' in i['ilParams']['w']:
 			w = int(re.sub("[^0-9]","",i['ilParams']['w']))
 			if k in images and w != images[k]['dimensions'][0]:
-				logging.error("w parameter ({}px) does not match actual image width ({}px)\nLine {}: {}".format(w,images[k]['dimensions'][0],i['startLine'],i['ilStatement']))
+				logging.error("w parameter ({}px) does not match actual image width ({}px)\nLine {}: {}".format(w,images[k]['dimensions'][0],i['startLine'],i['ilStatement']))		
 			
 	return
 
@@ -148,7 +172,7 @@ def buildImageDictionary():
 			key = idFromFilename(fn)
 			images[key] = ({'anchorID':anchorID, 'fileName':fn, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
 
-			if not re.match(r"i_\d{3,4}[a-z]?\.", fn):
+			if not re.match(r"i_\d{3,4}[a-z]?\.", fn) and fn != "cover.jpg":
 				logging.warning("File '{}' does not match expected naming convention (i_001, i_001a)".format(fn))
 		
 #	print(images)
@@ -235,7 +259,7 @@ def buildBoilerplateDictionary( inBuf ):
 	f.close()
 	
 	logging.info("--- Running ppgen against temporary ppgen source file")
-	ppgenCommandLine=['ppgen','-i',tempFileName] # TODO: this wont work on windows..
+	ppgenCommandLine=['ppgen','-i',tempFileName] # TODO: this wont work on windows?
 	proc=subprocess.Popen(ppgenCommandLine)
 	proc.wait()
 	if proc.returncode != 0:
