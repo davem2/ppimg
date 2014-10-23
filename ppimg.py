@@ -39,6 +39,8 @@ import subprocess
 import json
 import shlex
 
+VERSION="0.1.0" # MAJOR.MINOR.PATCH | http://semver.org
+
 def isLineBlank( line ):
 	return re.match(r"^\s*$", line)
 	
@@ -661,7 +663,7 @@ def calcImageWidths( inBuf, maxwidth ):
 
 
 def main():
-	args = docopt(__doc__, version='ppimg 0.1')
+	args = docopt(__doc__, version="ppimg v{}".format(VERSION))
 
 	# Configure logging
 	logLevel = logging.INFO #default

@@ -24,3 +24,16 @@
 - buildImageDictionary should take image path as argument
 
 - Add support for linked images (check option.. others areas?)
+
+- Add id to JSON so non-standard filename/ids can be used
+
+- Update max sizes for check routine with values used by PG for .epub .mobi generation:
+	epub
+	MAX_IMAGE_SIZE  = 127 * 1024  # in bytes
+	MAX_IMAGE_DIMEN = (800, 1280)  # in pixels
+	MAX_COVER_DIMEN = (800, 1280)  # in pixels
+
+	mobi
+	MAX_IMAGE_SIZE_KINDLE  = 127 * 1024  # in bytes
+	MAX_IMAGE_DIMEN_KINDLE = (1200, 1920)  # Kindle Fire HD 8.9" in pixels
+	MAX_COVER_DIMEN_KINDLE = (1200, 1920)  # 
