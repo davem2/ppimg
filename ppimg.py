@@ -3,7 +3,7 @@
 """ppimg
 
 Usage:
-  ppimg [-bcdiqvw] [--calcimagewidths] [--maxwidth=<maxwidth>] <infile> [<outfile>]
+  ppimg [options] <infile> [<outfile>]
   ppimg --gettargetwidth=<image>
   ppimg -h | --help
   ppimg ---version
@@ -16,15 +16,17 @@ Examples:
   ppimg book-src.txt book-src2.txt
 
 Options:
-  -b, --boilerplate    Generate HTML boilerplate code from .il/.ca markup. 
-  -c, --check          Check for issues with .il markup
-  -d, --dryrun         Run through conversions but do not write out result
-  -i, --illustrations  Convert raw [Illustration] tags into ppgen .il/.ca markup.
-  -q, --quiet          Print less text.
-  -v, --verbose        Print more text.
-  -w, --updatewidths   Update .il width parameters to files pixel dimensions.
-  -h, --help           Show help.
-  --version            Show version.
+  -b, --boilerplate     Generate HTML boilerplate code from .il/.ca markup. 
+  -c, --check           Check for issues with .il markup
+  --calcimagewidths     Calculate and set w= parameter to px based on % from w= or ew=
+  --maxwidth=<maxwidth> Maximum width of images, used as scale reference during calcimagewidths
+  -d, --dryrun          Run through conversions but do not write out result
+  -i, --illustrations   Convert raw [Illustration] tags into ppgen .il/.ca markup.
+  -q, --quiet           Print less text.
+  -v, --verbose         Print more text.
+  -w, --updatewidths    Update .il width parameters to files pixel dimensions.
+  -h, --help            Show help.
+  --version             Show version.
 """  
 
 from docopt import docopt
@@ -112,8 +114,8 @@ def checkForIssues( inBuf ):
 
 	logging.info("--- Checking for issues")
 
-	# Unused images
-	for k, i in images.items():
+	for k, i in sorted(images.items()):
+		# Unused images
 #		if not k in illustrations and i['fileName'] != "cover.jpg":
 		if not k in illustrations:
 			logging.error("Unused image {}".format(i['fileName']))
@@ -136,7 +138,7 @@ def checkForIssues( inBuf ):
 			logging.warning("{} size {}KB > {}KB".format(i['fileName'],size,MAX_SIZE))
 
 	
-	for k, i in illustrations.items():
+	for k, i in sorted(illustrations.items()):
 		
 		# Missing images
 		if not k in images:
