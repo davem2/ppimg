@@ -62,6 +62,24 @@ def idFromPageNumber( pn ):
 	return id
 	
 	
+def parseScanPage( line ):
+	scanPageNum = None
+	
+	m = re.match(r"-----File: (\d+\.(png|jpg|jpeg)).*", line)
+	if m:
+		scanPageNum = m.group(1)
+		
+	m = re.match(r"\/\/ (\d+\.(png|jpg|jpeg))", line)
+	if m:
+		scanPageNum = m.group(1)
+	
+	m = re.match(r"\.bn (\d+\.(png|jpg|jpeg))", line)
+	if m:
+		scanPageNum = m.group(1)
+	
+	return scanPageNum
+	
+	
 def findPreviousNonEmptyLine( buf, startLine ):
 	lineNum = startLine
 	while lineNum < len(buf) and isLineBlank(buf[lineNum]):
@@ -194,10 +212,7 @@ def parseIllustrationBlocks( inBuf ):
 	logging.info("--- Parsing .il/.ca statements from input")
 	while lineNum < len(inBuf):
 		# Keep track of active scanpage, page numbers must be 
-		m = re.match(r"\/\/ (\d+)\.[png|jpg|jpeg]", inBuf[lineNum])
-		if m:
-			currentScanPage = m.group(1)
-#			logging.debug("--- Processing page "+currentScanPage)
+		currentScanPage = parseScanPage(inBuf[lineNum])
 
 		# Find next .il/.ca, discard all other lines
 		if re.match(r"^\.il ", inBuf[lineNum]):
@@ -374,10 +389,7 @@ def convertRawIllustrationMarkup( inBuf ):
 	logging.info("--- Converting [Illustration] tags")
 	while lineNum < len(inBuf):
 		# Keep track of active scanpage, page numbers must be 
-		m = re.match(r"\/\/ (\d+)\.[png|jpg|jpeg]", inBuf[lineNum])
-		if m:
-			currentScanPage = m.group(1)
-#			logging.debug("--- Processing page "+currentScanPage)
+		currentScanPage = parseScanPage(inBuf[lineNum])
 
 		# Copy until next illustration block
 		if re.match(r"^\[Illustration", inBuf[lineNum]) or re.match(r"^\*\[Illustration", inBuf[lineNum]):
