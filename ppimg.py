@@ -212,7 +212,10 @@ def parseIllustrationBlocks( inBuf ):
 	logging.info("--- Parsing .il/.ca statements from input")
 	while lineNum < len(inBuf):
 		# Keep track of active scanpage, page numbers must be 
-		currentScanPage = parseScanPage(inBuf[lineNum])
+		pn = parseScanPage(inBuf[lineNum])
+		if pn:
+			currentScanPage = os.path.splitext(pn)[0]
+			logging.debug("--- Processing page {}".format(pn))
 
 		# Find next .il/.ca, discard all other lines
 		if re.match(r"^\.il ", inBuf[lineNum]):
@@ -389,7 +392,10 @@ def convertRawIllustrationMarkup( inBuf ):
 	logging.info("--- Converting [Illustration] tags")
 	while lineNum < len(inBuf):
 		# Keep track of active scanpage, page numbers must be 
-		currentScanPage = parseScanPage(inBuf[lineNum])
+		pn = parseScanPage(inBuf[lineNum])
+		if pn:
+			currentScanPage = os.path.splitext(pn)[0]
+			logging.debug("--- Processing page {}".format(pn))
 
 		# Copy until next illustration block
 		if re.match(r"^\[Illustration", inBuf[lineNum]) or re.match(r"^\*\[Illustration", inBuf[lineNum]):
