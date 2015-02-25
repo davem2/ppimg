@@ -37,3 +37,5 @@
 	MAX_IMAGE_SIZE_KINDLE  = 127 * 1024  # in bytes
 	MAX_IMAGE_DIMEN_KINDLE = (1200, 1920)  # Kindle Fire HD 8.9" in pixels
 	MAX_COVER_DIMEN_KINDLE = (1200, 1920)  # 
+	
+- Add setup.py

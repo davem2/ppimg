@@ -95,6 +95,10 @@ def findNextNonEmptyLine( buf, startLine ):
 
 	return lineNum
 
+def fatal( errorMsg ):
+	logging.critical(errorMsg)
+	exit(1)
+	return
 
 # For a given ppgen command, parse all arguments in the form
 # 	arg="val"
@@ -285,7 +289,7 @@ def buildBoilerplateDictionary( inBuf ):
 	proc=subprocess.Popen(ppgenCommandLine)
 	proc.wait()
 	if proc.returncode != 0:
-		logging.critical("Error occured during ppgen processing")
+		fatal("Error occured during ppgen processing")
 
 	logging.info("--- Parsing ppgen generated HTML")
 	# Open ppgen generated HTML and represent as an array of lines
@@ -431,7 +435,7 @@ def convertRawIllustrationMarkup( inBuf ):
 			if ilID == None and testID in illustrations:
 				ilID = testID
 			elif ilID == None:
-				logging.critical("No image file for illustration located on scan page {}.png".format(currentScanPage));
+				fatal("No image file for illustration located on scan page {}".format(currentScanPage));
 
 			# Convert to ppgen illustration block
 			# .il id=i001 fn=i_001.jpg w=600 alt=''
@@ -557,8 +561,7 @@ def loadFile(fn):
 	encoding = ""
 
 	if not os.path.isfile(fn):
-		logging.critical("specified file '{}' not found".format(fn))
-		exit(1)
+		fatal("specified file '{}' not found".format(fn))
 
 	if encoding == "":
 		try:
@@ -672,7 +675,7 @@ def calcImageWidths( inBuf, maxwidth ):
 	proc=subprocess.Popen(commandLine)
 	proc.wait()
 	if proc.returncode != 0:
-		logging.critical("Error occured processing {}".format(commandLine))
+		fatal("Error occured processing {}".format(commandLine))
 
 	logging.info("*************************************************")
 	logging.info("***                                          ****")
