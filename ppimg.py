@@ -639,7 +639,7 @@ def calcImageWidths( inBuf, maxwidth ):
 	logging.info("-- Calculating widths")
 
 	illustrations = parseIllustrationBlocks(inBuf)
-#	images = buildImageDictionary()
+	images = buildImageDictionary()
 
 	jsonData = loadJSON("images.json")
 
@@ -647,21 +647,32 @@ def calcImageWidths( inBuf, maxwidth ):
 		ilParams = il['ilParams']
 
 		# Check image percentage
-		if "%" in ilParams['w']:
+		if 'w' in ilParams and "%" in ilParams['w']:
 			scale = int(re.sub("%", "", ilParams['w'])) / 100.0
-		elif "%" in ilParams['ew']:
+		elif 'ew' in ilParams and "%" in ilParams['ew']:
 			scale = int(re.sub("%", "", ilParams['ew'])) / 100.0
 		else:
 			scale = 0
 			logging.error("w or ew parameter must be expressed in % for width to be calculated")
 
-		calculatedWidth = int(scale * int(maxwidth))
+		calculatedWidth = '"{}"'.format(int(scale * int(maxwidth)))
 
 		# Add to data
 		key = "images/"+ilParams['fn']
-		logging.debug("Key: {}, Calculated width: {}".format(key, calculatedWidth))
+		logging.info("Calculated width for {}: {}".format(key, calculatedWidth))
 		jsonData[key] = ({'targetWidth':calculatedWidth})
 #		images[scanPageNum] = ({'anchorID':anchorID, 'fileName':f, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
+
+	# Fallback to percentage scaling for images that are not defined through .il 
+	for k, i in sorted(images.items()):
+		if not k in illustrations:
+			calculatedWidth = '"40%"'
+
+			# Add to data
+			key = "images/"+i['fileName']
+			logging.info("Calculated width for {}: {}".format(key, calculatedWidth))
+			jsonData[key] = ({'targetWidth':calculatedWidth})
+
 
 	logging.info("--- Updating images.json with calculated widths")
 	# Write out JSON
