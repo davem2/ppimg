@@ -623,11 +623,9 @@ def loadJSON( fn ):
 	try:
 		with open(fn) as f:
 			data = json.load(f)
-	except FileNotFoundError:
-		logging.info("--- JSON file '{}' not found, using empty dictionary".format(fn))
-		pass
 	except:
-		raise
+		logging.info("--- Error loading JSON file '{}', using empty dictionary".format(fn))
+		pass
 	else:
 		logging.info("--- Loaded JSON from file '{}'".format(fn))
 
