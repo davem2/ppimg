@@ -653,7 +653,7 @@ def calcImageWidths( inBuf, maxwidth ):
 			scale = 0
 			logging.error("w or ew parameter must be expressed in % for width to be calculated")
 
-		calculatedWidth = '"{}"'.format(int(scale * int(maxwidth)))
+		calculatedWidth = "{}".format(int(scale * int(maxwidth)))
 
 		# Add to data
 		key = "images/"+ilParams['fn']
@@ -664,7 +664,7 @@ def calcImageWidths( inBuf, maxwidth ):
 	# Fallback to percentage scaling for images that are not defined through .il 
 	for k, i in sorted(images.items()):
 		if not k in illustrations:
-			calculatedWidth = '"40%"'
+			calculatedWidth = "40%"
 
 			# Add to data
 			key = "images/"+i['fileName']
