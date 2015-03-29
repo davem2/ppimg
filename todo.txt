@@ -1,6 +1,6 @@
 - Add validation option that:
-	- verifies dimensions in source match actual 
-	- checks for unused images 
+	- verifies dimensions in source match actual
+	- checks for unused images
 	- checks that images exist
 	- look at ppvimage for ideas
 
@@ -36,6 +36,9 @@
 	mobi
 	MAX_IMAGE_SIZE_KINDLE  = 127 * 1024  # in bytes
 	MAX_IMAGE_DIMEN_KINDLE = (1200, 1920)  # Kindle Fire HD 8.9" in pixels
-	MAX_COVER_DIMEN_KINDLE = (1200, 1920)  # 
-	
+	MAX_COVER_DIMEN_KINDLE = (1200, 1920)  #
+
 - Add setup.py
+
+- Add fix for nested [] issue inside [Illustration (already fixed in [Footnote)
+

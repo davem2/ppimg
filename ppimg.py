@@ -381,13 +381,15 @@ def generateHTMLBoilerplate( inBuf ):
 
 	return outBuf
 
-def convertRawIllustrationMarkup( inBuf ):
+
+def processIllustrations( inBuf ):
 	# Replace [Illustration: caption] markup with equivalent .il/.ca statements
 	outBuf = []
 	lineNum = 0
 	currentScanPage = 0
 	illustrationTagCount = 0
 	asteriskIllustrationTagCount = 0
+	#TODO use format() instead of +
 
 	logging.info("-- Processing illustrations")
 
@@ -413,10 +415,22 @@ def convertRawIllustrationMarkup( inBuf ):
 				illustrationTagCount += 1
 
 			# Copy illustration block
-			inBlock.append(inBuf[lineNum])
-			while lineNum < len(inBuf)-1 and not re.search(r"]$", inBuf[lineNum]):
-				lineNum += 1
-				inBlock.append(inBuf[lineNum])
+			bracketLevel = 0
+			done = False
+			while lineNum < len(inBuf)-1 and not done:
+				# Detect when [ ] level so that nested [] are handled properly
+				m = re.findall("\[", inBuf[lineNum])
+				for b in m:
+					bracketLevel += 1
+				m = re.findall("\]", inBuf[lineNum])
+				for b in m:
+					bracketLevel -= 1
+
+				if bracketLevel == 0 and re.search(r"]$", inBuf[lineNum]):
+					done = True
+				else:
+					lineNum += 1
+					inBlock.append(inBuf[lineNum])
 
 			lineNum += 1
 
@@ -435,12 +449,15 @@ def convertRawIllustrationMarkup( inBuf ):
 			if ilID == None and testID in illustrations:
 				ilID = testID
 			elif ilID == None:
-				fatal("No image file for illustration located on scan page {}".format(currentScanPage));
+				logging.error("No image file for illustration located on scan page {}".format(currentScanPage));
 
-			# Convert to ppgen illustration block
-			# .il id=i001 fn=i_001.jpg w=600 alt=''
-			outBlock.append(".il id=" + ilID + " fn=" +  illustrations[ilID]['fileName'] + " w=" + str(illustrations[ilID]['dimensions'][0]) + "px" + " alt=''")
-			illustrations[ilID]['usageCount'] += 1
+			if ilID:
+				# Convert to ppgen illustration block
+				# .il id=i001 fn=i_001.jpg w=600 alt=''
+				outBlock.append(".il id={} fn={} w={}px alt=''".format(ilID,illustrations[ilID]['fileName'],str(illustrations[ilID]['dimensions'][0])))
+				illustrations[ilID]['usageCount'] += 1
+			else:
+				outBlock.append(".il id={} fn={} alt=''".format(testID,testID))
 
 			# Extract caption from illustration block
 			captionBlock = []
@@ -661,7 +678,7 @@ def calcImageWidths( inBuf, maxwidth ):
 		jsonData[key] = ({'targetWidth':calculatedWidth})
 #		images[scanPageNum] = ({'anchorID':anchorID, 'fileName':f, 'scanPageNum':scanPageNum, 'dimensions':img.size, 'caption':"", 'usageCount':0 })
 
-	# Fallback to percentage scaling for images that are not defined through .il 
+	# Fallback to percentage scaling for images that are not defined through .il
 	for k, i in sorted(images.items()):
 		if not k in illustrations:
 			calculatedWidth = "40%"
@@ -738,7 +755,7 @@ def main():
 		logging.info("Processing '{}' to '{}'".format(infile,outfile))
 		outBuf = []
 		if doIllustrations:
-			outBuf = convertRawIllustrationMarkup(inBuf)
+			outBuf = processIllustrations(inBuf)
 			inBuf = outBuf
 		elif doBoilerplate:
 			outBuf = generateHTMLBoilerplate(inBuf)
@@ -753,11 +770,8 @@ def main():
 			checkForIssues(inBuf)
 
 		if outBuf and not args['--dryrun']:
-			# Save file
-			f = open(outfile,'w')
-			for line in outBuf:
-				f.write(line+'\n')
-			f.close()
+			with open(outfile, mode='wt', encoding='utf-8') as f:
+				f.write('\n'.join(outBuf))
 
 	return
 
