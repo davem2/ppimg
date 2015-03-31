@@ -65,15 +65,15 @@ def idFromPageNumber( pn ):
 def parseScanPage( line ):
 	scanPageNum = None
 
-	m = re.match(r"-----File: (\d+\.(png|jpg|jpeg)).*", line)
+	m = re.match(r"-----File: (\w+\.(png|jpg|jpeg)).*", line)
 	if m:
 		scanPageNum = m.group(1)
 
-	m = re.match(r"\/\/ (\d+\.(png|jpg|jpeg))", line)
+	m = re.match(r"\/\/ (\w+\.(png|jpg|jpeg))", line)
 	if m:
 		scanPageNum = m.group(1)
 
-	m = re.match(r"\.bn (\d+\.(png|jpg|jpeg))", line)
+	m = re.match(r"\.bn (\w+\.(png|jpg|jpeg))", line)
 	if m:
 		scanPageNum = m.group(1)
 
@@ -468,7 +468,7 @@ def processIllustrations( inBuf ):
 				captionBlock.append(line)
 
 		    # .ca SOUTHAMPTON BAR IN THE OLDEN TIME.
-			if len(captionBlock) == 1 and captionBlock[0] == "":
+			if len(captionBlock) == 0 or (len(captionBlock) == 1 and captionBlock[0] == ""):
 				# No caption
 				pass
 			elif len(captionBlock) == 1:
