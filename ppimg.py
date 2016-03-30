@@ -428,11 +428,9 @@ def processIllustrations( inBuf ):
 
 				if bracketLevel == 0 and re.search(r"]$", inBuf[lineNum]):
 					done = True
-				else:
-					lineNum += 1
-					inBlock.append(inBuf[lineNum])
 
-			lineNum += 1
+				inBlock.append(inBuf[lineNum])
+				lineNum += 1
 
 			# Handle multiple illustrations per page, must be named (i_001a, i_001b, ...) or (i_001, i_001a, i_001b, ...)
 			ilID = None
